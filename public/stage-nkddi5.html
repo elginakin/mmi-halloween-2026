@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<title>A Lab Murder · Stage</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/firebase-config.js"></script>
+<style>
+  :root {
+    --bg: #121014; --card: #1C1920; --line: #2E2A33;
+    --text: #EFE9DD; --muted: #9A93A3;
+    --accent: #F28C28; --on-accent: #1A0F05;
+    --gold: #E8B931;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  /* 1rem = 1% of the 16:9 stage width (19.2px on a 1080p projector). */
+  html { font-size: min(1vw, 1.7778vh); background: var(--bg); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--sans);
+    display: grid; place-items: center; cursor: default;
+  }
+  .stage { position: relative; width: 100rem; height: 56.25rem; overflow: hidden; --stripH: 0rem; }
+  .stage.strip-full { --stripH: 12rem; }
+  .stage.strip-mini { --stripH: 4.2rem; }
+
+  .main { position: absolute; left: 0; right: 0; top: 0; bottom: var(--stripH); transition: bottom .6s ease; }
+  .view {
+    position: absolute; inset: 0; padding: 3.4rem 4.5rem 2.4rem;
+    opacity: 0; visibility: hidden; transition: opacity .6s ease, visibility 0s linear .6s;
+  }
+  .view.on { opacity: 1; visibility: visible; transition: opacity .6s ease, visibility 0s; }
+
+  .kicker { color: var(--accent); font-weight: 800; letter-spacing: .2em; font-size: 1.5rem; text-transform: uppercase; }
+  .muted { color: var(--muted); }
+  .dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; vertical-align: .02em; flex: none; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(1.2rem); } to { opacity: 1; transform: none; } }
+  .enter { animation: fadeUp .8s ease both; }
+
+  /* ---------- photos ---------- */
+  .photo { background: var(--card); overflow: hidden; display: grid; place-items: center; flex: none; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+  .photo .initial { font-family: var(--serif); font-weight: 700; color: var(--on-accent); }
+
+  /* ---------- TITLE ---------- */
+  #v-TITLE { display: flex; flex-direction: column; justify-content: center; padding-left: 8rem; padding-right: 8rem; }
+  #v-TITLE h1 { font-family: var(--serif); font-size: 7rem; line-height: 1.05; margin: 1.4rem 0 3rem; font-weight: 700; }
+  #v-TITLE .intro { font-size: 2.6rem; line-height: 1.45; max-width: 72rem; }
+  #v-TITLE .intro .time { color: var(--accent); font-weight: 700; }
+  #v-TITLE .lying { font-family: var(--serif); font-style: italic; font-size: 3.4rem; margin-top: 2.4rem; }
+  .moon { position: absolute; top: 4rem; right: 7rem; width: 9rem; height: 9rem; }
+
+  /* ---------- LINEUP ---------- */
+  #v-LINEUP { display: flex; align-items: center; justify-content: center; }
+  .suspect-big { display: flex; align-items: center; gap: 5rem; }
+  .suspect-big .photo { width: 27rem; height: 34rem; border-radius: 1.2rem; }
+  .suspect-big .photo .initial { font-size: 14rem; }
+  .suspect-big .num { font-size: 2rem; color: var(--muted); font-weight: 700; letter-spacing: .12em; }
+  .suspect-big .name { font-family: var(--serif); font-size: 6.4rem; line-height: 1.05; margin: 1rem 0 2.6rem; display: flex; align-items: center; gap: 2.2rem; }
+  .suspect-big .name .dot { width: 3.4rem; height: 3.4rem; }
+  .suspect-big .row { font-size: 3.2rem; margin-top: 1rem; }
+  .suspect-big .row .lab { color: var(--muted); font-size: 1.8rem; letter-spacing: .14em; display: inline-block; width: 13rem; font-weight: 700; }
+
+  /* ---------- lineup strip ---------- */
+  .strip {
+    position: absolute; left: 0; right: 0; bottom: 0; height: var(--stripH);
+    border-top: 1px solid var(--line); background: var(--bg);
+    display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 2.5rem;
+    transition: height .6s ease, opacity .6s ease; overflow: hidden;
+  }
+  .stage:not(.strip-full):not(.strip-mini) .strip { opacity: 0; }
+  .stage.strip-full .view { padding-bottom: 3.4rem; }
+  .strip-label {
+    position: absolute; left: 3.7rem; bottom: calc(var(--stripH) + .7rem);
+    font-size: 1.25rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--accent);
+    opacity: 0; transition: opacity .6s ease, bottom .6s ease; pointer-events: none;
+  }
+  .strip-label span { color: var(--muted); margin-left: .8rem; }
+  .stage.strip-full .strip-label { opacity: 1; }
+  .slot { display: flex; flex-direction: column; justify-content: center; gap: .2rem; padding: .9rem 1.2rem; min-width: 0; }
+  .slot + .slot { border-left: 1px solid var(--line); }
+  .slot .top { display: flex; align-items: center; gap: .9rem; margin-bottom: .35rem; }
+  .slot .n { font-size: 2.2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .slot .photo { width: 3.6rem; height: 3.6rem; border-radius: 50%; }
+  .slot .photo .initial { font-size: 1.9rem; }
+  .slot .nm { font-size: 1.55rem; font-weight: 700; display: flex; align-items: center; gap: .55rem; white-space: nowrap; overflow: hidden; }
+  .slot .sm { font-size: 1.25rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slot.empty > * { visibility: hidden; }
+  .slot.new { animation: fadeUp .8s ease both; }
+  .strip-mini .slot { flex-direction: row; align-items: center; padding: 0 .9rem; gap: .6rem; }
+  .strip-mini .slot .top { margin: 0; }
+  .strip-mini .slot .n { font-size: 1.5rem; }
+  .strip-mini .slot .photo, .strip-mini .slot .sm { display: none; }
+  .strip-mini .slot .nm { font-size: 1.3rem; }
+
+  /* ---------- RULE ---------- */
+  #v-RULE { display: flex; align-items: center; justify-content: center; }
+  .rule-card { max-width: 76rem; padding: 5rem 6rem; background: var(--card); border: 1px solid var(--line); border-radius: 1.6rem; text-align: center; }
+  .rule-card p { font-family: var(--serif); font-size: 5rem; line-height: 1.2; margin-top: 2.4rem; }
+
+  /* ---------- CLUES ---------- */
+  #v-CLUES { display: grid; grid-template-columns: 38rem 1fr; gap: 3rem; padding-top: 2.6rem; }
+  .side { display: flex; flex-direction: column; gap: .8rem; min-height: 0; }
+  .list-head { font-size: 1.25rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+  .rule-mini { font-size: 1.35rem; color: var(--muted); line-height: 1.35; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
+  .rule-mini b { color: var(--text); }
+  .mini-clue { background: var(--card); border: 1px solid var(--line); border-radius: .9rem; padding: .8rem 1.2rem; }
+  .mini-clue .who { font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; gap: .6rem; }
+  .mini-clue .who .k { color: var(--accent); }
+  .mini-clue .q { font-size: 1.35rem; line-height: 1.3; margin-top: .25rem; }
+  .clue-main { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+  .clue-card { background: var(--card); border: 1px solid var(--line); border-radius: 1.6rem; padding: 3.2rem 3.8rem; }
+  .clue-card .head { display: flex; align-items: center; gap: 2.2rem; margin: 1.4rem 0 2.2rem; }
+  .clue-card .photo { width: 9rem; height: 11rem; border-radius: .9rem; }
+  .clue-card .photo .initial { font-size: 5rem; }
+  .clue-card .speaker { font-size: 3.2rem; font-weight: 800; display: flex; align-items: center; gap: 1.2rem; }
+  .clue-card .speaker-sub { font-size: 1.7rem; color: var(--muted); margin-top: .4rem; }
+  .clue-card blockquote { font-family: var(--serif); font-size: 4rem; line-height: 1.25; }
+
+  /* ---------- VOTING ---------- */
+  #v-VOTING { display: grid; grid-template-columns: 23rem 17rem 1fr; gap: 3rem; align-items: start; padding-top: 2.6rem; }
+  .qr-box { background: var(--text); border-radius: 1.2rem; padding: 1.3rem; }
+  #qr canvas, #qr img { width: 100% !important; height: auto !important; display: block; }
+  .scan { font-size: 2.3rem; font-weight: 800; margin-top: 1.1rem; text-align: center; }
+  .url { font-size: 1.4rem; color: var(--muted); text-align: center; margin-top: .3rem; word-break: break-all; }
+  .count-big { font-size: 8rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .count-lab { font-size: 2.2rem; color: var(--muted); margin-top: .6rem; }
+  .clock { font-size: 5.2rem; font-weight: 800; color: var(--accent); margin-top: 3rem; font-variant-numeric: tabular-nums; line-height: 1; }
+  .clock.closed { color: var(--muted); font-size: 3.4rem; }
+  .clock-lab { font-size: 2rem; color: var(--muted); margin-top: .6rem; }
+  .clue-list { display: flex; flex-direction: column; gap: .7rem; min-height: 0; }
+
+  /* ---------- RESULTS ---------- */
+  #v-RESULTS { display: flex; flex-direction: column; gap: 1.3rem; padding-top: 2rem; padding-bottom: 1.4rem; }
+  .res-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 3rem; flex: none; }
+  .res-head h2 { font-family: var(--serif); font-size: 3.8rem; line-height: 1; }
+  .total { display: flex; align-items: baseline; gap: 1rem; }
+  .total b { font-size: 4.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .total span { font-size: 1.5rem; color: var(--muted); letter-spacing: .14em; font-weight: 700; }
+  .answer-line { display: none; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 1.2rem; padding: 1.4rem 2.2rem; min-height: 0; position: relative; }
+  .panel h3 { font-size: 1.4rem; letter-spacing: .16em; color: var(--muted); font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }
+  .acc-panel { flex: none; }
+  .cats { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3rem; min-height: 0; }
+  .cats .panel { padding: 1.2rem 1.6rem; display: flex; flex-direction: column; overflow: hidden; }
+  .cats .panel h3 { margin-bottom: .7rem; font-size: 1.3rem; }
+
+  .acc { display: grid; grid-template-columns: 40rem 1fr; align-items: center; gap: 1.4rem; margin-bottom: .55rem; }
+  .acc .lbl { font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; gap: .7rem; white-space: nowrap; overflow: hidden; }
+  .track { display: flex; align-items: center; gap: 1rem; height: 2.6rem; min-width: 0; }
+  .fill { height: 100%; width: 0; background: var(--accent); border-radius: .35rem; transition: width 1.3s cubic-bezier(.2,.8,.2,1), background-color .8s, opacity .8s; flex: none; }
+  .num { font-size: 1.9rem; font-weight: 800; font-variant-numeric: tabular-nums; transition: opacity .8s; }
+  .else { position: relative; margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--line); }
+  .else .acc { margin: 0; }
+  .else .lbl { flex-direction: column; align-items: flex-start; gap: 0; color: var(--muted); }
+  .else .note { font-size: 1.25rem; font-weight: 500; }
+  .stack { display: flex; gap: 2px; height: 100%; width: 0; transition: width 1.3s cubic-bezier(.2,.8,.2,1); flex: none; }
+  .seg { height: 100%; min-width: 3px; transition: background-color .8s, opacity .8s; cursor: pointer; }
+  .seg:first-child { border-radius: .35rem 0 0 .35rem; }
+  .seg:last-child { border-radius: 0 .35rem .35rem 0; }
+  .seg:only-child { border-radius: .35rem; }
+  .pop {
+    display: none; position: absolute; left: 41.4rem; bottom: calc(100% - .4rem); z-index: 4;
+    background: var(--bg); border: 1px solid var(--line); border-radius: .8rem;
+    padding: .8rem; min-width: 34rem; font-size: 1.35rem;
+  }
+  .pop.show { display: block; }
+  .pop .r { display: flex; align-items: center; gap: .9rem; padding: .35rem .6rem; border-radius: .4rem; }
+  .pop .r.hi { background: var(--line); }
+  .pop .sw { width: 1.3rem; height: 1.3rem; border-radius: .25rem; flex: none; }
+  .pop .r span:last-child { margin-left: auto; font-weight: 800; padding-left: 1.6rem; font-variant-numeric: tabular-nums; }
+
+  .bars { flex: 1; display: flex; flex-direction: column; gap: .4rem; min-height: 0; }
+  .bar { display: grid; grid-template-columns: 11.5rem 1fr; align-items: center; gap: .9rem; flex: 0 1 2.2rem; min-height: 1.5rem; }
+  .bar .name { font-size: 1.35rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: .5rem; transition: opacity .8s; }
+  .bar .track { height: 100%; gap: .7rem; }
+  .bar .num { font-size: 1.45rem; }
+  .bar.others .fill { background: #6B6572; }
+  .bar.others .name { color: var(--muted); }
+  .others-names { font-size: 1.15rem; color: var(--muted); margin-top: .3rem; line-height: 1.3; }
+  .empty-note { font-size: 1.6rem; color: var(--muted); }
+
+  /* after the reveal: gold for correct, everything else fades */
+  .revealed .fill:not(.ok), .revealed .seg:not(.ok) { background: var(--muted); opacity: .22; }
+  .revealed .bar:not(.ok-row) .name, .revealed .acc:not(.ok-row) .lbl, .revealed .bar:not(.ok-row) .num, .revealed .acc:not(.ok-row) .num { opacity: .4; }
+  .revealed .fill.ok, .revealed .seg.ok { background: var(--gold); opacity: 1; }
+  .revealed .ok-row .name, .revealed .ok-row .lbl { color: var(--gold); }
+  .revealed .others-names .gold { color: var(--gold); font-weight: 800; }
+  .revealed .res-head h2, .revealed .total { display: none; }
+  .revealed .answer-line { display: flex; width: 100%; align-items: flex-end; justify-content: space-between; gap: 3rem; }
+  .answer-line .who { white-space: nowrap; font-family: var(--serif); font-size: 2.7rem; color: var(--gold); line-height: 1.1; }
+  .answer-line .why { font-size: 1.45rem; color: var(--muted); margin-top: .5rem; font-style: italic; }
+  .answer-line .stats { display: flex; gap: 3.4rem; text-align: right; flex: none; }
+  .answer-line .stats b { font-size: 3.8rem; line-height: 1; display: block; font-variant-numeric: tabular-nums; }
+  .answer-line .stats b.g { color: var(--gold); }
+  .answer-line .stats span { font-size: 1.5rem; color: var(--muted); }
+
+  /* ---------- REVEAL overlay ---------- */
+  .overlay {
+    position: absolute; inset: 0; z-index: 10; background: rgba(8, 7, 10, .93);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: opacity 1.2s ease, visibility 0s linear 1.2s;
+  }
+  .overlay.on { opacity: 1; visibility: visible; transition: opacity 1.2s ease, visibility 0s; }
+  .overlay .was { font-family: var(--serif); font-size: 4.8rem; font-style: italic; opacity: 0; transition: opacity 1.4s ease; }
+  .overlay .was.on { opacity: 1; }
+  .cards { display: flex; gap: 3rem; margin-top: 3rem; }
+  .card3d { width: 23rem; height: 27rem; perspective: 120rem; opacity: 0; transform: translateY(2rem); transition: opacity .8s, transform .8s; }
+  .card3d.on { opacity: 1; transform: none; }
+  .card3d .inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 1.1s cubic-bezier(.3,.1,.2,1); }
+  .card3d.flip .inner { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 1.4rem; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem; text-align: center;
+  }
+  .face.back { background: var(--card); border: 2px solid var(--accent); }
+  .face.back .q { font-family: var(--serif); font-size: 12rem; color: var(--accent); line-height: 1; }
+  .face.back .t { font-size: 1.6rem; letter-spacing: .2em; color: var(--muted); font-weight: 800; margin-top: 1.4rem; }
+  .face.front { background: var(--card); border: 2px solid var(--gold); transform: rotateY(180deg); }
+  .face.front .t { font-size: 1.5rem; letter-spacing: .2em; color: var(--gold); font-weight: 800; margin-bottom: 1.6rem; }
+  .face.front .photo { width: 11rem; height: 13rem; border-radius: .9rem; margin-bottom: 1.6rem; }
+  .face.front .photo .initial { font-size: 7rem; }
+  .face.front .emo { font-size: 8.5rem; line-height: 1.1; margin-bottom: 1.6rem; }
+  .face.front .v { font-family: var(--serif); font-size: 3rem; line-height: 1.1; }
+  .overlay .line { font-family: var(--serif); font-size: 2.9rem; margin-top: 3.2rem; max-width: 90rem; text-align: center; opacity: 0; transition: opacity 1.4s ease; }
+  .overlay .line.on { opacity: 1; }
+
+  .conn { position: absolute; right: 1.4rem; top: 1rem; font-size: 1.2rem; color: var(--muted); z-index: 20; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="main">
+    <section class="view on" id="v-TITLE">
+      <svg class="moon" viewBox="0 0 100 100" aria-hidden="true">
+        <defs><mask id="m"><rect width="100" height="100" fill="#fff"/><circle cx="64" cy="40" r="40" fill="#000"/></mask></defs>
+        <circle cx="50" cy="50" r="42" fill="#EFE9DD" mask="url(#m)"/>
+      </svg>
+      <div class="kicker">A Lab Murder</div>
+      <h1>Who killed Dr. Boddy?</h1>
+      <p class="intro"><span class="time">Halloween night, 11:47 PM.</span> Dr. Boddy, keeper of the department's microscope booking calendar, is found dead. Seven lab members were in the building.</p>
+      <p class="lying">One of them is lying.</p>
+    </section>
+
+    <section class="view" id="v-LINEUP"><div id="lineupCard"></div></section>
+
+    <section class="view" id="v-RULE">
+      <div class="rule-card">
+        <div class="kicker">The rule</div>
+        <p>The innocent tell the truth.<br>The killer lies.</p>
+      </div>
+    </section>
+
+    <section class="view" id="v-CLUES">
+      <div class="side" id="clueSide"></div>
+      <div class="clue-main" id="clueMain"></div>
+    </section>
+
+    <section class="view" id="v-VOTING">
+      <div>
+        <div class="qr-box"><div id="qr"></div></div>
+        <div class="scan">Scan to vote</div>
+        <div class="url" id="voteUrl"></div>
+      </div>
+      <div>
+        <div class="count-big" id="voteCount">0</div>
+        <div class="count-lab" id="voteCountLab">votes</div>
+        <div class="clock" id="clock">–</div>
+        <div class="clock-lab" id="clockLab"></div>
+      </div>
+      <div class="clue-list" id="clueList"></div>
+    </section>
+
+    <section class="view" id="v-RESULTS">
+      <div class="res-head">
+        <h2>The votes are in</h2>
+        <div class="total"><b id="totalVotes">0</b><span>TOTAL VOTES</span></div>
+        <div class="answer-line" id="answerLine"></div>
+      </div>
+      <div class="panel acc-panel" id="accPanel"></div>
+      <div class="cats">
+        <div class="panel" id="cat-suspect"></div>
+        <div class="panel" id="cat-weapon"></div>
+        <div class="panel" id="cat-location"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="strip-label">Suspects<span>in walk order</span></div>
+  <div class="strip" id="strip"></div>
+
+  <div class="overlay" id="overlay">
+    <div class="was" id="was">The murderer was…</div>
+    <div class="cards" id="cards"></div>
+    <div class="line" id="revealLine"></div>
+  </div>
+
+  <div class="conn" id="conn">Connecting…</div>
+</div>
+
+<script type="module">
+// Firebase web config comes from /firebase-config.js (git-ignored, see README step 4).
+// If that file is missing, it is loaded from Firebase Hosting's /__/firebase/init.json.
+const FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const { initializeApp } = await import(SDK + 'firebase-app.js');
+const { getFirestore, doc, collection, onSnapshot } = await import(SDK + 'firebase-firestore.js');
+
+// Walk order. Do not reorder: it is part of the puzzle.
+const SUSPECTS = [
+  { id: 'mustard',  name: 'Colonel Mustard', color: '#D9A82E', weapon: { id: 'icescraper', label: 'Ice scraper',  emoji: '❄️' }, room: { id: 'coldroom', label: 'Cold Room',             emoji: '❄️' } },
+  { id: 'scarlett', name: 'Miss Scarlett',   color: '#C8323A', weapon: { id: 'microscope', label: 'Microscope',   emoji: '🔬' }, room: { id: 'elevator', label: 'Elevator',              emoji: '🛗' } },
+  { id: 'peach',    name: 'Miss Peach',      color: '#F2B08A', weapon: { id: 'textbook',   label: 'Textbook',     emoji: '📕' }, room: { id: 'reading',  label: 'Reading Rooms',         emoji: '📚' } },
+  { id: 'plum',     name: 'Professor Plum',  color: '#7B4F9E', weapon: { id: 'tapegun',    label: 'Tape gun',     emoji: '📦' }, room: { id: 'sheldon',  label: 'Sheldon',               emoji: '🚪' } },
+  { id: 'peacock',  name: 'Mrs. Peacock',    color: '#3C6FB0', weapon: { id: 'poison',     label: 'Poison',       emoji: '☠️' }, room: { id: 'grin',     label: 'Daily Grind',            emoji: '☕' } },
+  { id: 'white',    name: 'Mrs. White',      color: '#EFE9DD', weapon: { id: 'hose',       label: 'Rubber hose',  emoji: '🪢' }, room: { id: 'glass',    label: 'Glass Conference Room', short: 'Glass Conf. Room', emoji: '🪟' } },
+  { id: 'green',    name: 'Ms. Green',       color: '#3F8F55', weapon: { id: 'pipette',    label: 'Micropipette', emoji: '💧' }, room: { id: 'flow',     label: 'Flow Core',             emoji: '🧪' } },
+];
+const CLUES = [
+  { who: 'mustard', text: 'The body was still warm. Whatever happened, it wasn’t in my Cold Room.' },
+  { who: 'peach',   text: 'The weapon belongs to someone who walked out right next to me.' },
+  { who: 'peacock', text: 'It happened on the weapon owner’s own turf, in their room.' },
+  { who: 'plum',    text: 'I was in Sheldon all night. Nothing happened there.' },
+  { who: 'scarlett', text: 'The killer walked out before I did.' },
+];
+const TRAP_SUSPECT = 'mustard';   // used for the "fooled by Colonel Mustard" stat
+const PHASES = ['TITLE', 'LINEUP', 'RULE', 'CLUES', 'VOTING', 'RESULTS', 'REVEAL'];
+const GOLD_OK = 'ok';
+const GREYS = ['#CFC9D4', '#B3ACBA', '#9A93A1', '#847D8B', '#706A77', '#5F5966', '#514C57', '#45404A', '#36323B'];
+
+const S = {}, W = {}, L = {};
+SUSPECTS.forEach((s, i) => { s.n = i + 1; S[s.id] = s; W[s.weapon.id] = s.weapon; L[s.room.id] = s.room; });
+const KIND_OPTS = {
+  suspect: SUSPECTS.map(s => ({ id: s.id, label: s.name.replace('Colonel', 'Col.').replace('Professor', 'Prof.'), pre: `<span class="dot" style="background:${s.color}"></span>` })),
+  weapon: SUSPECTS.map(s => ({ id: s.weapon.id, label: s.weapon.label, pre: s.weapon.emoji })),
+  location: SUSPECTS.map(s => ({ id: s.room.id, label: s.room.short || s.room.label, pre: s.room.emoji })),
+};
+
+let game = { phase: 'TITLE', lineupIndex: 0, clueIndex: 0, votingOpen: false, countdownEndsAt: null, reveal: null };
+let votes = [];
+let photos = {};
+let shownPhase = null, shownLineup = null, shownClue = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function photoHTML(s) {
+  if (photos[s.id]) return `<div class="photo"><img src="${photos[s.id]}" alt=""></div>`;
+  return `<div class="photo" style="background:${s.color}"><span class="initial">${s.name.split(' ').pop()[0]}</span></div>`;
+}
+
+// ---------- phase rendering ----------
+function renderPhase() {
+  const phase = PHASES.includes(game.phase) ? game.phase : 'TITLE';
+  const viewPhase = phase === 'REVEAL' ? 'RESULTS' : phase;
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + viewPhase));
+
+  const stage = $('stage');
+  stage.classList.toggle('strip-full', ['LINEUP', 'RULE', 'CLUES', 'VOTING'].includes(phase));
+  stage.classList.toggle('strip-mini', ['RESULTS', 'REVEAL'].includes(phase));
+  renderStrip(phase);
+
+  if (phase === 'LINEUP') renderLineup();
+  if (phase === 'CLUES') renderClues();
+  if (phase === 'VOTING') renderVoting();
+
+  const enteringResults = (phase === 'RESULTS' || phase === 'REVEAL') && !['RESULTS', 'REVEAL'].includes(shownPhase);
+  if (phase === 'RESULTS' || phase === 'REVEAL') renderResults(enteringResults);
+
+  if (phase === 'REVEAL' && game.reveal) startReveal();
+  else stopReveal();
+
+  shownPhase = phase;
+}
+
+function renderStrip(phase) {
+  const walked = phase === 'TITLE' ? 0 : phase === 'LINEUP' ? clamp(game.lineupIndex, 0, 6) + 1 : 7;
+  const strip = $('strip');
+  if (strip.children.length !== 7 || strip.dataset.photos !== photoKey()) {
+    strip.innerHTML = SUSPECTS.map(s => `
+      <div class="slot empty" data-i="${s.n}">
+        <div class="top"><span class="n">${s.n}</span>${photoHTML(s)}</div>
+        <div class="nm"><span class="dot" style="background:${s.color}"></span>${s.name.replace('Colonel', 'Col.').replace('Professor', 'Prof.')}</div>
+        <div class="sm">${s.weapon.emoji} ${s.weapon.label}</div>
+        <div class="sm">${s.room.emoji} ${s.room.short || s.room.label}</div>
+      </div>`).join('');
+    strip.dataset.photos = photoKey();
+    strip.dataset.walked = '';
+  }
+  [...strip.children].forEach((el, i) => {
+    const show = i < walked;
+    const wasHidden = el.classList.contains('empty');
+    el.classList.toggle('empty', !show);
+    if (show && wasHidden && strip.dataset.walked !== '') { el.classList.remove('new'); void el.offsetWidth; el.classList.add('new'); }
+  });
+  strip.dataset.walked = walked;
+}
+function photoKey() { return SUSPECTS.map(s => photos[s.id] ? photos[s.id].length : 0).join(','); }
+function clamp(n, a, b) { return Math.max(a, Math.min(b, Number(n) || 0)); }
+
+function renderLineup() {
+  const i = clamp(game.lineupIndex, 0, 6), s = SUSPECTS[i];
+  const key = i + '|' + photoKey();
+  if (shownLineup === key) return;
+  const animate = !shownLineup || shownLineup.split('|')[0] !== String(i) || shownPhase !== 'LINEUP';
+  shownLineup = key;
+  $('lineupCard').innerHTML = `
+    <div class="suspect-big ${animate ? 'enter' : ''}">
+      ${photoHTML(s)}
+      <div>
+        <div class="num">SUSPECT ${s.n} OF 7</div>
+        <div class="name"><span class="dot" style="background:${s.color}"></span>${s.name}</div>
+        <div class="row"><span class="lab">WEAPON</span>${s.weapon.emoji} ${s.weapon.label}</div>
+        <div class="row"><span class="lab">ROOM</span>${s.room.emoji} ${s.room.label}</div>
+      </div>
+    </div>`;
+}
+
+function miniClue(c, i) {
+  const s = S[c.who];
+  return `<div class="mini-clue"><div class="who"><span class="k">${i + 1}</span><span class="dot" style="background:${s.color}"></span>${s.name}</div><div class="q">“${c.text}”</div></div>`;
+}
+
+function renderClues() {
+  const i = clamp(game.clueIndex, 0, CLUES.length - 1);
+  const key = i + '|' + photoKey();
+  if (shownClue === key && shownPhase === 'CLUES') return;
+  const animate = !shownClue || shownClue.split('|')[0] !== String(i) || shownPhase !== 'CLUES';
+  shownClue = key;
+  $('clueSide').innerHTML =
+    `<div class="rule-mini"><b>The innocent tell the truth. The killer lies.</b></div>` +
+    CLUES.slice(0, i).map(miniClue).join('');
+  const c = CLUES[i], s = S[c.who];
+  $('clueMain').innerHTML = `
+    <div class="clue-card ${animate ? 'enter' : ''}">
+      <div class="kicker">Clue ${i + 1} of ${CLUES.length}</div>
+      <div class="head">
+        ${photoHTML(s)}
+        <div>
+          <div class="speaker"><span class="dot" style="background:${s.color}"></span>${s.name}</div>
+          <div class="speaker-sub">Walked out ${['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'][s.n - 1]}</div>
+        </div>
+      </div>
+      <blockquote>“${c.text}”</blockquote>
+    </div>`;
+}
+
+function renderVoting() {
+  $('clueList').innerHTML =
+    `<div class="list-head">Clues</div><div class="rule-mini"><b>The innocent tell the truth. The killer lies.</b></div>` +
+    CLUES.map(miniClue).join('');
+  renderVoteCount();
+  tick();
+}
+
+function renderVoteCount() {
+  $('voteCount').textContent = votes.length;
+  $('voteCountLab').textContent = votes.length === 1 ? 'vote' : 'votes';
+}
+
+function isOpen() {
+  return !!game.votingOpen && (!game.countdownEndsAt || Date.now() < game.countdownEndsAt);
+}
+function tick() {
+  if (game.phase !== 'VOTING') return;
+  const clock = $('clock');
+  if (isOpen()) {
+    clock.classList.remove('closed');
+    if (game.countdownEndsAt) {
+      const s = Math.max(0, Math.ceil((game.countdownEndsAt - Date.now()) / 1000));
+      clock.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      $('clockLab').textContent = 'left to vote';
+    } else {
+      clock.textContent = 'Open';
+      $('clockLab').textContent = 'voting is open';
+    }
+  } else {
+    const ended = game.votingOpen || votes.length > 0;
+    clock.classList.add('closed');
+    clock.textContent = ended ? 'Voting closed' : 'Get ready';
+    $('clockLab').textContent = ended ? '' : 'voting opens soon';
+  }
+}
+setInterval(tick, 250);
+
+// ---------- results ----------
+function comboLabel(parts) {
+  const [s, w, l] = parts;
+  return `<span class="dot" style="background:${S[s].color}"></span>${S[s].name} · ${W[w].emoji} ${W[w].label} · ${L[l].emoji} ${L[l].label}`;
+}
+function comboText(parts) {
+  const [s, w, l] = parts;
+  return `${S[s].name} · ${W[w].label} · ${L[l].label}`;
+}
+
+function tally() {
+  const valid = votes.filter(v => S[v.suspect] && W[v.weapon] && L[v.location]);
+  const combos = new Map();
+  const cat = { suspect: {}, weapon: {}, location: {} };
+  for (const v of valid) {
+    const key = `${v.suspect}|${v.weapon}|${v.location}`;
+    combos.set(key, (combos.get(key) || 0) + 1);
+    cat.suspect[v.suspect] = (cat.suspect[v.suspect] || 0) + 1;
+    cat.weapon[v.weapon] = (cat.weapon[v.weapon] || 0) + 1;
+    cat.location[v.location] = (cat.location[v.location] || 0) + 1;
+  }
+  const list = [...combos].map(([key, count]) => ({ key, count, parts: key.split('|') }))
+    .sort((a, b) => b.count - a.count || (a.key < b.key ? -1 : 1));
+  return { total: valid.length, list, cat, valid };
+}
+
+function renderResults(animate) {
+  const { total, list, cat, valid } = tally();
+  const ans = game.reveal;
+  const ansKey = ans ? `${ans.suspect}|${ans.weapon}|${ans.location}` : null;
+  $('totalVotes').textContent = total;
+
+  // --- Top accusations ---
+  const top = list.slice(0, 3), rest = list.slice(3);
+  const big = rest.filter(c => c.count >= 3);
+  const indiv = big.slice(0, 6), more = big.slice(6);
+  const twos = rest.filter(c => c.count === 2), ones = rest.filter(c => c.count === 1);
+  const sum = arr => arr.reduce((a, c) => a + c.count, 0);
+  const plural = (n, one, many) => n === 1 ? one : many;
+  const segs = indiv.map(c => ({ label: comboText(c.parts), count: c.count, ok: c.key === ansKey }));
+  if (more.length) segs.push({ label: `${more.length} more ${plural(more.length, 'guess', 'guesses')} with 3+ votes`, count: sum(more) });
+  if (twos.length) segs.push({ label: `${twos.length} ${plural(twos.length, 'guess', 'guesses')} with 2 votes`, count: sum(twos) });
+  if (ones.length) segs.push({ label: `${ones.length} ${plural(ones.length, 'guess', 'guesses')} with 1 vote`, count: sum(ones) });
+  segs.forEach((g, i) => g.color = i === segs.length - 1 && ones.length ? GREYS[GREYS.length - 1] : GREYS[i]);
+  const elseTotal = sum(rest);
+  const scale = Math.max(1, ...top.map(c => c.count), elseTotal);
+  const pct = n => (n / scale * 86).toFixed(2) + '%';
+
+  let h = `<h3>Top accusations</h3>`;
+  if (!total) h += `<div class="empty-note">No votes yet.</div>`;
+  h += top.map(c => {
+    const ok = c.key === ansKey;
+    return `<div class="acc ${ok ? 'ok-row' : ''}"><div class="lbl">${comboLabel(c.parts)}</div>
+      <div class="track"><div class="fill ${ok ? GOLD_OK : ''}" data-w="${pct(c.count)}"></div><span class="num">${c.count}</span></div></div>`;
+  }).join('');
+  if (rest.length) {
+    h += `<div class="else">
+      <div class="acc"><div class="lbl">Everything else<span class="note">${rest.length} different ${plural(rest.length, 'guess', 'guesses')} · hover to see</span></div>
+        <div class="track"><div class="stack" data-w="${pct(elseTotal)}">${segs.map((g, i) =>
+          `<div class="seg ${g.ok ? GOLD_OK : ''}" data-i="${i}" style="flex:${g.count} 1 0;background:${g.color}"></div>`).join('')}</div><span class="num">${elseTotal}</span></div></div>
+      <div class="pop" id="pop">${segs.map((g, i) =>
+        `<div class="r" data-i="${i}"><span class="sw" style="background:${g.color}"></span>${esc(g.label)}<span>${g.count}</span></div>`).join('')}</div>
+    </div>`;
+  }
+  $('accPanel').innerHTML = h;
+
+  // --- Suspect / Weapon / Location ---
+  for (const kind of ['suspect', 'weapon', 'location']) {
+    const entries = KIND_OPTS[kind].map((o, idx) => ({ ...o, idx, count: cat[kind][o.id] || 0 }))
+      .filter(e => e.count > 0).sort((a, b) => b.count - a.count || a.idx - b.idx);
+    const shown = entries.filter((e, i) => i < 3 || e.count / total >= 0.06);
+    const others = entries.filter(e => !shown.includes(e));
+    const oSum = others.reduce((a, e) => a + e.count, 0);
+    const sc = Math.max(1, ...shown.map(e => e.count), oSum);
+    const p = n => (n / sc * 84).toFixed(2) + '%';
+    const okId = ans ? ans[kind] : null;
+    let hh = `<h3>${kind}</h3><div class="bars">`;
+    if (!total) hh += `<div class="empty-note">No votes yet.</div>`;
+    hh += shown.map(e => `<div class="bar ${e.id === okId ? 'ok-row' : ''}"><div class="name">${e.pre} ${e.label}</div>
+      <div class="track"><div class="fill ${e.id === okId ? GOLD_OK : ''}" data-w="${p(e.count)}"></div><span class="num">${e.count}</span></div></div>`).join('');
+    if (others.length) {
+      hh += `<div class="bar others"><div class="name">Others (${others.length})</div>
+        <div class="track"><div class="fill" data-w="${p(oSum)}"></div><span class="num">${oSum}</span></div></div>
+        <div class="others-names">${others.map(e => `<span class="${e.id === okId ? 'gold' : ''}">${e.label} ${e.count}</span>`).join(' · ')}</div>`;
+    }
+    $('cat-' + kind).innerHTML = hh + '</div>';
+  }
+
+  // --- answer line + stats (visible once revealed) ---
+  if (ans && S[ans.suspect]) {
+    const solved = valid.filter(v => `${v.suspect}|${v.weapon}|${v.location}` === ansKey).length;
+    const fooled = valid.filter(v => v.suspect === TRAP_SUSPECT).length;
+    const pc = n => total ? Math.round(n / total * 100) : 0;
+    $('answerLine').innerHTML = `
+      <div><div class="who">${S[ans.suspect].name} · ${W[ans.weapon].emoji} ${W[ans.weapon].label} · ${L[ans.location].emoji} ${L[ans.location].label}</div>
+      ${ans.line ? `<div class="why">${esc(ans.line)}</div>` : ''}</div>
+      <div class="stats">
+        <div><b class="g">${pc(solved)}%</b><span>solved all three</span></div>
+        <div><b>${pc(fooled)}%</b><span>were fooled by ${S[TRAP_SUSPECT].name}</span></div>
+      </div>`;
+  } else {
+    $('answerLine').innerHTML = '';
+  }
+
+  // grow bars in
+  const sized = document.querySelectorAll('#v-RESULTS [data-w]');
+  if (animate) {
+    sized.forEach(el => { el.style.transition = 'none'; el.style.width = '0'; });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      sized.forEach((el, i) => {
+        el.style.transition = '';
+        el.style.transitionDelay = (0.15 + (i % 6) * 0.12) + 's';
+        el.style.width = el.dataset.w;
+      });
+    }));
+  } else {
+    sized.forEach(el => { el.style.transition = 'none'; el.style.width = el.dataset.w; });
+  }
+
+  wirePopover();
+}
+
+function wirePopover() {
+  const pop = $('pop');
+  const stack = document.querySelector('#accPanel .stack');
+  if (!pop || !stack) return;
+  stack.querySelectorAll('.seg').forEach(seg => {
+    seg.addEventListener('mouseenter', () => {
+      pop.classList.add('show');
+      pop.querySelectorAll('.r').forEach(r => r.classList.toggle('hi', r.dataset.i === seg.dataset.i));
+    });
+  });
+  stack.addEventListener('mouseleave', () => pop.classList.remove('show'));
+}
+
+// ---------- reveal ----------
+let revealTimers = [], revealRunning = false, revealKey = null;
+
+function startReveal() {
+  const r = game.reveal;
+  const key = `${r.suspect}|${r.weapon}|${r.location}`;
+  if (revealRunning && revealKey === key) return;
+  stopReveal();
+  revealRunning = true; revealKey = key;
+  if (!S[r.suspect] || !W[r.weapon] || !L[r.location]) return;
+
+  const s = S[r.suspect], w = W[r.weapon], l = L[r.location];
+  $('cards').innerHTML = [
+    ['Suspect', `${photoHTML(s)}<div class="v">${s.name}</div>`],
+    ['Weapon', `<div class="emo">${w.emoji}</div><div class="v">${w.label}</div>`],
+    ['Location', `<div class="emo">${l.emoji}</div><div class="v">${l.label}</div>`],
+  ].map(([t, body]) => `
+    <div class="card3d"><div class="inner">
+      <div class="face back"><div class="q">?</div><div class="t">${t.toUpperCase()}</div></div>
+      <div class="face front"><div class="t">${t.toUpperCase()}</div>${body}</div>
+    </div></div>`).join('');
+  $('revealLine').textContent = r.line || '';
+  $('v-RESULTS').classList.remove('revealed');
+
+  const cards = [...document.querySelectorAll('#cards .card3d')];
+  const at = (ms, fn) => revealTimers.push(setTimeout(fn, ms));
+  $('overlay').classList.add('on');
+  at(700, () => $('was').classList.add('on'));
+  at(2000, () => cards.forEach(c => c.classList.add('on')));
+  at(4500, () => cards[0].classList.add('flip'));
+  at(7500, () => cards[1].classList.add('flip'));
+  at(10500, () => cards[2].classList.add('flip'));
+  at(12500, () => $('revealLine').classList.add('on'));
+  at(20000, finishReveal);
+}
+function finishReveal() {
+  revealTimers.forEach(clearTimeout); revealTimers = [];
+  $('overlay').classList.remove('on');
+  $('v-RESULTS').classList.add('revealed');
+}
+function stopReveal() {
+  revealTimers.forEach(clearTimeout); revealTimers = [];
+  revealRunning = false; revealKey = null;
+  $('overlay').classList.remove('on');
+  $('was').classList.remove('on');
+  $('revealLine').classList.remove('on');
+  $('v-RESULTS').classList.remove('revealed');
+}
+// Click the projector screen to skip ahead during the reveal.
+$('overlay').addEventListener('click', () => {
+  const cards = [...document.querySelectorAll('#cards .card3d')];
+  if (cards.every(c => c.classList.contains('flip'))) return finishReveal();
+  revealTimers.forEach(clearTimeout); revealTimers = [];
+  $('was').classList.add('on');
+  cards.forEach(c => c.classList.add('on', 'flip'));
+  $('revealLine').classList.add('on');
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'f' || e.key === 'F') {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  }
+});
+
+// ---------- QR ----------
+const VOTE_URL = location.origin + '/';
+$('voteUrl').textContent = VOTE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
+new QRCode($('qr'), { text: VOTE_URL, width: 640, height: 640, colorDark: '#121014', colorLight: '#EFE9DD', correctLevel: QRCode.CorrectLevel.M });
+
+// ---------- Firebase ----------
+const config = FIREBASE_CONFIG || await (await fetch('/__/firebase/init.json')).json();
+const db = getFirestore(initializeApp(config));
+
+onSnapshot(doc(db, 'game', 'state'), snap => {
+  $('conn').textContent = '';
+  if (snap.exists()) game = { ...game, ...snap.data() };
+  renderPhase();
+}, err => { console.error(err); $('conn').textContent = 'Connection problem'; });
+
+onSnapshot(collection(db, 'votes'), snap => {
+  votes = snap.docs.map(d => d.data());
+  renderVoteCount();
+  if (game.phase === 'RESULTS' || game.phase === 'REVEAL') renderResults(false);
+});
+
+onSnapshot(collection(db, 'characters'), snap => {
+  photos = {};
+  snap.docs.forEach(d => { if (d.data().photoDataUrl) photos[d.id] = d.data().photoDataUrl; });
+  shownLineup = null; shownClue = null;
+  renderPhase();
+});
+
+renderPhase();
+</script>
+</body>
+</html>

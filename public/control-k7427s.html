@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<title>A Lab Murder · Control</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/firebase-config.js"></script>
+<style>
+  :root {
+    --bg: #121014; --card: #1C1920; --line: #2E2A33;
+    --text: #EFE9DD; --muted: #9A93A3;
+    --accent: #F28C28; --on-accent: #1A0F05;
+    --red: #D9443A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 80px; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .kicker { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: .18em; }
+  h1 { font-size: 28px; font-weight: 800; }
+  .live { margin-left: auto; color: var(--muted); font-size: 14px; }
+  .live b { color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 18px; }
+  h2 { font-size: 13px; letter-spacing: .16em; color: var(--muted); font-weight: 800; margin-bottom: 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+
+  button {
+    font: inherit; font-weight: 700; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; cursor: pointer;
+    min-height: 44px;
+  }
+  button:hover { border-color: var(--muted); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  button.danger { border-color: var(--red); color: #FF8A80; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .phases { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .phases button { min-height: 72px; font-size: 16px; letter-spacing: .06em; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .phases button small { font-weight: 600; font-size: 11px; color: var(--muted); letter-spacing: 0; }
+  .phases button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .phases button.on small { color: var(--on-accent); }
+  .phases button.reveal { border-color: var(--accent); }
+
+  .steps { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 14px; margin-top: 16px; }
+  .step { border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .step h3 { font-size: 12px; letter-spacing: .14em; color: var(--muted); margin-bottom: 8px; }
+  .step .now { font-size: 18px; font-weight: 800; margin-bottom: 2px; }
+  .step .next { font-size: 13px; color: var(--muted); margin-bottom: 10px; min-height: 18px; }
+  .step button { min-width: 90px; }
+  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+  input[type=number] { width: 74px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; min-height: 44px; }
+  .vstatus { font-size: 18px; font-weight: 800; margin-bottom: 10px; }
+  .vstatus.open { color: var(--accent); }
+
+  .stats { display: flex; gap: 28px; margin-bottom: 14px; flex-wrap: wrap; }
+  .stats div b { font-size: 26px; display: block; line-height: 1.1; }
+  .stats div span { font-size: 12px; color: var(--muted); letter-spacing: .1em; }
+  .tools { margin-bottom: 14px; }
+  .tools .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--muted); font-size: 11px; letter-spacing: .12em; padding: 8px 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tr.v { cursor: pointer; }
+  tr.v:hover td { background: #231F28; }
+  .table-box { max-height: 520px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .08em; padding: 2px 7px; border-radius: 5px; margin-right: 4px; }
+  .badge.re { background: var(--red); color: #fff; }
+  .badge.sim { background: var(--line); color: var(--muted); }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); }
+  tr.hist td { background: var(--bg); padding: 10px 10px 12px 34px; }
+  .hist ol { margin-left: 18px; }
+  .hist li { padding: 2px 0; }
+  .caret { color: var(--muted); width: 18px; }
+
+  .photos { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+  .ph { border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+  .ph .img { aspect-ratio: 4/5; border-radius: 8px; background: var(--bg); overflow: hidden; display: grid; place-items: center; margin-bottom: 8px; }
+  .ph img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+  .ph .nm { font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+  .ph label { display: block; font-weight: 700; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; cursor: pointer; margin-bottom: 6px; }
+  .ph label:hover { border-color: var(--muted); }
+  .ph input { display: none; }
+  .ph button { min-height: 32px; padding: 4px 8px; font-size: 12px; width: 100%; }
+
+  .share { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .qr-box { background: #fff; padding: 14px; border-radius: 10px; width: 228px; }
+  #qr canvas, #qr img, #qrPrint canvas, #qrPrint img { width: 100% !important; height: auto !important; display: block; }
+  .url { font-size: 22px; font-weight: 800; word-break: break-all; margin-bottom: 10px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 10px; font-weight: 700; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.on { opacity: 1; }
+
+  #printArea { display: none; }
+  @media print {
+    body { background: #fff; color: #000; }
+    .wrap, .toast { display: none !important; }
+    #printArea { display: block; text-align: center; padding-top: 40px; font-family: Georgia, serif; }
+    #printArea h1 { font-size: 40px; margin-bottom: 6px; }
+    #printArea p { font-size: 22px; margin-bottom: 28px; }
+    #qrPrint { width: 420px; margin: 0 auto 24px; }
+    #printArea .u { font: 700 22px system-ui, sans-serif; }
+  }
+  .crew-link { color: var(--muted); font-size: 14px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .crew-link:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Show runner: one big Next button that walks through the whole show in order. */
+  .runner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .runner .now { flex: 1; min-width: 0; }
+  .runner .lab { display: block; font-size: 11px; font-weight: 800; letter-spacing: .16em; color: var(--muted); }
+  .runner .nowtext { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .runner .rv { font-size: 14px; font-weight: 800; color: var(--accent); min-height: 18px; }
+  .runner .rbtns { display: flex; gap: 10px; }
+  .runner .back { min-width: 64px; min-height: 64px; font-size: 20px; }
+  .runner .next { min-height: 64px; min-width: 260px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; padding: 8px 18px; }
+  .runner .next small { font-size: 11px; letter-spacing: .16em; font-weight: 800; opacity: .75; }
+  .runner .next span { font-size: 18px; font-weight: 800; }
+  .runner .next.reveal-next { background: var(--text); border-color: var(--text); color: var(--bg); }
+
+  @media (max-width: 900px) {
+    .phases { grid-template-columns: repeat(4, 1fr); }
+    .steps { grid-template-columns: 1fr; }
+    .photos { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 700px) {
+    body { font-size: 15px; }
+    .wrap { padding: 14px 12px calc(150px + env(safe-area-inset-bottom)); }
+    header { margin-bottom: 12px; gap: 10px; }
+    h1 { font-size: 22px; }
+    .live { margin-left: 0; width: 100%; }
+    .card { padding: 14px; border-radius: 12px; margin-bottom: 12px; }
+    .runner-card {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; border-radius: 16px 16px 0 0;
+      border-width: 1px 0 0; background: var(--bg);
+      padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    }
+    .runner-card h2 { display: none; }
+    .runner { gap: 8px; }
+    .runner .now { flex-basis: 100%; }
+    .runner .nowtext { font-size: 16px; }
+    .runner .rbtns { flex: 1; }
+    .runner .next { flex: 1; min-width: 0; }
+    .phases { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .phases button { min-height: 52px; font-size: 12px; padding: 6px 4px; letter-spacing: 0; }
+    .phases button small { display: none; }
+    .step .row button { flex: 1; }
+    .tools button { padding: 8px 12px; }
+    .tools .sep { display: none; }
+    .stats { gap: 14px 20px; }
+    .stats div b { font-size: 20px; }
+    th:nth-child(7), td:nth-child(7) { display: none; }
+    th, td { padding: 7px 6px; }
+    table { font-size: 13px; }
+    .photos { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .qr-box { width: 160px; }
+    .url { font-size: 16px; }
+    .toast { bottom: calc(160px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">A LAB MURDER</div>
+      <h1>Host controls</h1>
+    </div>
+    <div class="live" id="live">Connecting…</div>
+    <a class="crew-link" href="/crew-okzzjf.html">Crew page</a>
+  </header>
+
+  <div class="card runner-card">
+    <h2>RUN THE SHOW</h2>
+    <div class="runner">
+      <div class="now">
+        <span class="lab">ON SCREEN NOW</span>
+        <div class="nowtext" id="nowText">…</div>
+        <div class="rv" id="runVote"></div>
+      </div>
+      <div class="rbtns">
+        <button class="back" id="stepBack" aria-label="Back one step">◀</button>
+        <button class="primary next" id="stepNext"><small>NEXT</small><span id="nextText">…</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>JUMP TO A PHASE</h2>
+    <div class="phases" id="phases"></div>
+    <div class="steps">
+      <div class="step">
+        <h3>LINEUP</h3>
+        <div class="now" id="lineupNow"></div>
+        <div class="next" id="lineupNext"></div>
+        <div class="row"><button id="lineupBack">◀ Back</button><button class="primary" id="lineupFwd">Next ▶</button></div>
+      </div>
+      <div class="step">
+        <h3>CLUES</h3>
+        <div class="now" id="clueNow"></div>
+        <div class="next" id="clueNext"></div>
+        <div class="row"><button id="clueBack">◀ Back</button><button class="primary" id="clueFwd">Next ▶</button></div>
+      </div>
+      <div class="step">
+        <h3>VOTING</h3>
+        <div class="vstatus" id="vstatus">Closed</div>
+        <div class="row">
+          <label class="muted small" for="mins">Countdown (min)</label>
+          <input type="number" id="mins" value="2" min="0" step="0.5">
+          <button class="primary" id="openVote">Open voting</button>
+          <button id="plusMin">+1 min</button>
+          <button id="closeVote">Close</button>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="resetGame" class="small">Reset game to TITLE</button>
+      <span class="muted small">Puts the screen back to the title, closes voting and hides the answer. Votes are kept.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>VOTES</h2>
+    <div class="stats">
+      <div><b id="nTotal">0</b><span>TOTAL</span></div>
+      <div><b id="nReal">0</b><span>REAL</span></div>
+      <div><b id="nSim">0</b><span>SIMULATED</span></div>
+      <div><b id="nRe">0</b><span>REVOTED</span></div>
+      <div><b id="nLog">–</b><span>SUBMISSIONS LOGGED</span></div>
+    </div>
+    <div class="row tools">
+      <span class="muted small">Simulate</span>
+      <button data-sim="20">20</button><button data-sim="50">50</button><button data-sim="100">100</button><button data-sim="200">200</button>
+      <span class="sep"></span>
+      <button id="clearSim">Clear simulated votes</button>
+      <button id="resetAll" class="danger">Reset ALL votes</button>
+      <span class="sep"></span>
+      <button id="csv">Export CSV</button>
+      <label class="muted small"><input type="checkbox" id="hideSim"> Hide simulated</label>
+    </div>
+    <div class="table-box">
+      <table>
+        <thead><tr><th></th><th>TIME</th><th>SUSPECT</th><th>WEAPON</th><th>LOCATION</th><th>STATUS</th><th>DEVICE</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="muted small" style="margin-top:8px">Click a row to see every submission from that device.</div>
+  </div>
+
+  <div class="card">
+    <h2>SUSPECT PHOTOS</h2>
+    <div class="photos" id="photos"></div>
+    <div class="muted small" style="margin-top:10px">Photos are resized in your browser to 400px JPEG and stored in Firestore. They show on the projector only, never on phones.</div>
+  </div>
+
+  <div class="card">
+    <h2>VOTE PAGE</h2>
+    <div class="share">
+      <div class="qr-box"><div id="qr"></div></div>
+      <div>
+        <div class="url" id="voteUrl"></div>
+        <div class="row"><button id="copyUrl">Copy link</button><button id="printQr" class="primary">Print QR code</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="printArea">
+  <h1>Who killed Dr. Boddy?</h1>
+  <p>Scan to vote: pick a suspect, a weapon and a location.</p>
+  <div id="qrPrint"></div>
+  <div class="u" id="printUrl"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+// Firebase web config comes from /firebase-config.js (git-ignored, see README step 4).
+// If that file is missing, it is loaded from Firebase Hosting's /__/firebase/init.json.
+const FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const { initializeApp } = await import(SDK + 'firebase-app.js');
+const {
+  getFirestore, doc, collection, onSnapshot, setDoc, deleteDoc, getDocs, getDoc,
+  query, where, writeBatch, getCountFromServer,
+} = await import(SDK + 'firebase-firestore.js');
+
+// SECRET. The answer lives only here. It is written to game/state when you press REVEAL.
+const ANSWER = {
+  suspect: 'scarlett', weapon: 'microscope', location: 'elevator',
+  line: 'Dr. Boddy bumped her microscope booking. For the third time.',
+};
+const TRAP = { suspect: 'mustard', weapon: 'microscope', location: 'elevator' };
+
+// Walk order. Do not reorder: it is part of the puzzle.
+const SUSPECTS = [
+  { id: 'mustard',  name: 'Colonel Mustard', color: '#D9A82E', weapon: { id: 'icescraper', label: 'Ice scraper',  emoji: '❄️' }, room: { id: 'coldroom', label: 'Cold Room',             emoji: '❄️' } },
+  { id: 'scarlett', name: 'Miss Scarlett',   color: '#C8323A', weapon: { id: 'microscope', label: 'Microscope',   emoji: '🔬' }, room: { id: 'elevator', label: 'Elevator',              emoji: '🛗' } },
+  { id: 'peach',    name: 'Miss Peach',      color: '#F2B08A', weapon: { id: 'textbook',   label: 'Textbook',     emoji: '📕' }, room: { id: 'reading',  label: 'Reading Rooms',         emoji: '📚' } },
+  { id: 'plum',     name: 'Professor Plum',  color: '#7B4F9E', weapon: { id: 'tapegun',    label: 'Tape gun',     emoji: '📦' }, room: { id: 'sheldon',  label: 'Sheldon',               emoji: '🚪' } },
+  { id: 'peacock',  name: 'Mrs. Peacock',    color: '#3C6FB0', weapon: { id: 'poison',     label: 'Poison',       emoji: '☠️' }, room: { id: 'grin',     label: 'Daily Grind',            emoji: '☕' } },
+  { id: 'white',    name: 'Mrs. White',      color: '#EFE9DD', weapon: { id: 'hose',       label: 'Rubber hose',  emoji: '🪢' }, room: { id: 'glass',    label: 'Glass Conference Room', emoji: '🪟' } },
+  { id: 'green',    name: 'Ms. Green',       color: '#3F8F55', weapon: { id: 'pipette',    label: 'Micropipette', emoji: '💧' }, room: { id: 'flow',     label: 'Flow Core',             emoji: '🧪' } },
+];
+const CLUE_SPEAKERS = ['mustard', 'peach', 'peacock', 'plum', 'scarlett'];
+const PHASES = [
+  ['TITLE', 'Victim intro'], ['LINEUP', 'Suspects walk'], ['RULE', 'Rule card'], ['CLUES', 'One at a time'],
+  ['VOTING', 'Opens voting'], ['RESULTS', 'Closes voting'], ['REVEAL', 'The answer'],
+];
+const S = {}, W = {}, L = {};
+SUSPECTS.forEach(s => { S[s.id] = s; W[s.weapon.id] = s.weapon; L[s.room.id] = s.room; });
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clamp = (n, a, b) => Math.max(a, Math.min(b, Number(n) || 0));
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+const config = FIREBASE_CONFIG || await (await fetch('/__/firebase/init.json')).json();
+const db = getFirestore(initializeApp(config));
+const stateRef = doc(db, 'game', 'state');
+const DEFAULT_STATE = { phase: 'TITLE', lineupIndex: 0, clueIndex: 0, votingOpen: false, countdownEndsAt: null, reveal: null };
+
+let game = { ...DEFAULT_STATE };
+let votes = [];          // [{id, ...data}]
+let photos = {};
+
+async function setState(patch) {
+  try { await setDoc(stateRef, patch, { merge: true }); }
+  catch (e) { console.error(e); toast('Could not update: ' + e.message); }
+}
+
+// ---------- phase controls ----------
+$('phases').innerHTML = PHASES.map(([p, sub]) =>
+  `<button data-phase="${p}" class="${p === 'REVEAL' ? 'reveal' : ''}">${p}<small>${sub}</small></button>`).join('');
+$('phases').addEventListener('click', e => {
+  const b = e.target.closest('button[data-phase]');
+  if (!b) return;
+  const p = b.dataset.phase;
+  if (p === 'VOTING') return openVoting();
+  if (p === 'RESULTS') return setState({ phase: 'RESULTS', votingOpen: false, countdownEndsAt: null, reveal: null });
+  if (p === 'REVEAL') {
+    if (!confirm('Reveal the answer on the projector now?')) return;
+    return setState({ phase: 'REVEAL', votingOpen: false, countdownEndsAt: null, reveal: { ...ANSWER } });
+  }
+  setState({ phase: p, reveal: null });
+});
+
+$('lineupBack').onclick = () => setState({ phase: 'LINEUP', reveal: null, lineupIndex: clamp(game.lineupIndex - 1, 0, 6) });
+$('lineupFwd').onclick = () => setState({
+  phase: 'LINEUP', reveal: null,
+  lineupIndex: game.phase === 'LINEUP' ? clamp(game.lineupIndex + 1, 0, 6) : clamp(game.lineupIndex, 0, 6),
+});
+$('clueBack').onclick = () => setState({ phase: 'CLUES', reveal: null, clueIndex: clamp(game.clueIndex - 1, 0, 4) });
+$('clueFwd').onclick = () => setState({
+  phase: 'CLUES', reveal: null,
+  clueIndex: game.phase === 'CLUES' ? clamp(game.clueIndex + 1, 0, 4) : clamp(game.clueIndex, 0, 4),
+});
+
+function openVoting() {
+  const mins = parseFloat($('mins').value);
+  const endsAt = mins > 0 ? Date.now() + mins * 60000 : null;
+  setState({ phase: 'VOTING', votingOpen: true, countdownEndsAt: endsAt, reveal: null });
+}
+$('openVote').onclick = openVoting;
+$('closeVote').onclick = () => setState({ votingOpen: false, countdownEndsAt: null });
+$('plusMin').onclick = () => {
+  if (!game.votingOpen) return toast('Voting is not open');
+  const base = Math.max(Date.now(), game.countdownEndsAt || Date.now());
+  setState({ countdownEndsAt: base + 60000 });
+};
+$('resetGame').onclick = () => {
+  if (confirm('Reset the screen to the title, close voting and hide the answer?')) setState({ ...DEFAULT_STATE });
+};
+
+// ---------- show runner (Next / Back through the whole show) ----------
+const STEPS = [
+  { phase: 'TITLE', label: 'Title card' },
+  ...SUSPECTS.map((s, i) => ({ phase: 'LINEUP', lineupIndex: i, label: `${s.name} walks out`, dot: s.color })),
+  { phase: 'RULE', label: 'Rule card' },
+  ...CLUE_SPEAKERS.map((id, i) => ({ phase: 'CLUES', clueIndex: i, label: `Clue ${i + 1}: ${S[id].name}`, dot: S[id].color })),
+  { phase: 'VOTING', label: 'Open voting' },
+  { phase: 'RESULTS', label: 'Close voting, show results' },
+  { phase: 'REVEAL', label: 'Reveal the answer' },
+];
+function currentStep() {
+  return STEPS.findIndex(st => st.phase === game.phase &&
+    (st.lineupIndex === undefined || st.lineupIndex === clamp(game.lineupIndex, 0, 6)) &&
+    (st.clueIndex === undefined || st.clueIndex === clamp(game.clueIndex, 0, 4)));
+}
+function applyStep(st, forward) {
+  if (st.phase === 'VOTING') return forward ? openVoting() : setState({ phase: 'VOTING', reveal: null });
+  if (st.phase === 'RESULTS') return setState({ phase: 'RESULTS', votingOpen: false, countdownEndsAt: null, reveal: null });
+  if (st.phase === 'REVEAL') {
+    if (!confirm('Reveal the answer on the projector now?')) return;
+    return setState({ phase: 'REVEAL', votingOpen: false, countdownEndsAt: null, reveal: { ...ANSWER } });
+  }
+  const patch = { phase: st.phase, reveal: null };
+  if (st.lineupIndex !== undefined) patch.lineupIndex = st.lineupIndex;
+  if (st.clueIndex !== undefined) patch.clueIndex = st.clueIndex;
+  return setState(patch);
+}
+let stepping = false;
+async function step(dir) {
+  if (stepping) return;                 // ignore double taps until Firestore answers
+  const i = currentStep();
+  const target = STEPS[i + dir];
+  if (i < 0 || !target) return;
+  stepping = true;
+  $('stepNext').disabled = $('stepBack').disabled = true;
+  try { await applyStep(target, dir > 0); } finally {
+    setTimeout(() => { stepping = false; renderRunner(); }, 400);
+  }
+}
+$('stepNext').onclick = () => step(1);
+$('stepBack').onclick = () => step(-1);
+
+function renderRunner() {
+  const i = currentStep(), cur = STEPS[i], nxt = STEPS[i + 1];
+  const dot = c => c ? `<span class="dot" style="background:${c}"></span>` : '';
+  $('nowText').innerHTML = cur
+    ? `${i + 1}/${STEPS.length} · ${dot(cur.dot)}${esc(cur.phase === 'VOTING' ? 'Voting' : cur.label)}`
+    : esc(game.phase);
+  $('nextText').textContent = nxt ? nxt.label : 'End of show';
+  $('stepNext').classList.toggle('reveal-next', !!nxt && nxt.phase === 'REVEAL');
+  if (!stepping) {
+    $('stepNext').disabled = !nxt;
+    $('stepBack').disabled = i <= 0;
+  }
+}
+
+function isOpen() { return !!game.votingOpen && (!game.countdownEndsAt || Date.now() < game.countdownEndsAt); }
+
+function renderControls() {
+  document.querySelectorAll('#phases button').forEach(b => b.classList.toggle('on', b.dataset.phase === game.phase));
+  const li = clamp(game.lineupIndex, 0, 6), s = SUSPECTS[li], sn = SUSPECTS[li + 1];
+  $('lineupNow').innerHTML = `${li + 1}/7 <span class="dot" style="background:${s.color}"></span>${s.name}`;
+  $('lineupNext').textContent = sn ? `Next to walk: ${sn.name}` : 'Everyone has walked out';
+  const ci = clamp(game.clueIndex, 0, 4), cs = S[CLUE_SPEAKERS[ci]], cn = S[CLUE_SPEAKERS[ci + 1]];
+  $('clueNow').innerHTML = `Clue ${ci + 1}/5 <span class="dot" style="background:${cs.color}"></span>${cs.name}`;
+  $('clueNext').textContent = cn ? `Next: ${cn.name}` : 'Last clue';
+  renderVoteStatus();
+  renderRunner();
+  $('live').innerHTML = `Screen: <b>${esc(game.phase)}</b>${game.reveal ? ' · answer revealed' : ''}`;
+}
+
+let autoClosing = false;
+function renderVoteStatus() {
+  const el = $('vstatus');
+  const open = isOpen();
+  el.classList.toggle('open', open);
+  if (open && game.countdownEndsAt) {
+    const sec = Math.max(0, Math.ceil((game.countdownEndsAt - Date.now()) / 1000));
+    el.textContent = `Open · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')} left`;
+  } else if (open) {
+    el.textContent = 'Open · no timer';
+  } else {
+    el.textContent = 'Closed';
+  }
+  $('runVote').textContent = game.phase === 'VOTING' || game.votingOpen ? 'Voting ' + el.textContent.toLowerCase() : '';
+  // Countdown ran out: close voting for real.
+  if (game.votingOpen && game.countdownEndsAt && Date.now() >= game.countdownEndsAt && !autoClosing) {
+    autoClosing = true;
+    setState({ votingOpen: false }).finally(() => { autoClosing = false; });
+  }
+}
+setInterval(renderVoteStatus, 500);
+
+// ---------- votes table ----------
+const expanded = new Set();
+const history = new Map();   // deviceId -> { ts, rows } | 'loading'
+let renderQueued = false;
+
+function nameOf(kind, id) {
+  if (kind === 'suspect') return S[id] ? S[id].name : id;
+  if (kind === 'weapon') return W[id] ? W[id].label : id;
+  return L[id] ? L[id].label : id;
+}
+function pickHTML(kind, id) {
+  if (kind === 'suspect') return S[id] ? `<span class="dot" style="background:${S[id].color}"></span>${S[id].name}` : esc(id);
+  const o = kind === 'weapon' ? W[id] : L[id];
+  return o ? `${o.emoji} ${o.label}` : esc(id);
+}
+const time = ts => ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+
+function queueTable() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderTable(); });
+}
+
+function renderTable() {
+  const real = votes.filter(v => !v.sim).length;
+  $('nTotal').textContent = votes.length;
+  $('nReal').textContent = real;
+  $('nSim').textContent = votes.length - real;
+  $('nRe').textContent = votes.filter(v => v.revote).length;
+
+  const hide = $('hideSim').checked;
+  const rows = votes.filter(v => !hide || !v.sim).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  let h = '';
+  for (const v of rows) {
+    const open = expanded.has(v.id);
+    h += `<tr class="v" data-id="${esc(v.id)}">
+      <td class="caret">${open ? '▾' : '▸'}</td>
+      <td>${time(v.ts)}</td>
+      <td>${pickHTML('suspect', v.suspect)}</td>
+      <td>${pickHTML('weapon', v.weapon)}</td>
+      <td>${pickHTML('location', v.location)}</td>
+      <td>${v.revote ? `<span class="badge re">REVOTE</span>${v.changes || 0} change${v.changes === 1 ? '' : 's'}` : ''}${v.sim ? ' <span class="badge sim">SIM</span>' : ''}</td>
+      <td class="mono">${esc(v.id.slice(0, 8))}</td>
+    </tr>`;
+    if (open) {
+      const hist = history.get(v.id);
+      let inner = '<span class="muted">Loading…</span>';
+      if (hist && hist !== 'loading') {
+        inner = hist.rows.length
+          ? `<ol>${hist.rows.map(r => `<li>${time(r.ts)} · ${nameOf('suspect', r.suspect)} · ${nameOf('weapon', r.weapon)} · ${nameOf('location', r.location)}</li>`).join('')}</ol>`
+          : '<span class="muted">No log entries.</span>';
+      }
+      if (!hist || (hist !== 'loading' && hist.ts !== v.ts)) loadHistory(v.id, v.ts);
+      h += `<tr class="hist"><td colspan="7">${inner}</td></tr>`;
+    }
+  }
+  $('tbody').innerHTML = h || `<tr><td colspan="7" class="muted">No votes yet.</td></tr>`;
+}
+
+async function loadHistory(deviceId, ts) {
+  history.set(deviceId, 'loading');
+  try {
+    const snap = await getDocs(query(collection(db, 'voteLog'), where('deviceId', '==', deviceId)));
+    const rows = snap.docs.map(d => d.data()).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    history.set(deviceId, { ts, rows });
+  } catch (e) {
+    console.error(e);
+    history.set(deviceId, { ts, rows: [] });
+  }
+  queueTable();
+}
+
+$('tbody').addEventListener('click', e => {
+  const tr = e.target.closest('tr.v');
+  if (!tr) return;
+  const id = tr.dataset.id;
+  expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+  if (!expanded.has(id)) history.delete(id);
+  renderTable();
+});
+$('hideSim').onchange = renderTable;
+
+// ---------- simulation ----------
+const NEAR_MISSES = [
+  [['plum', 'tapegun', 'sheldon'], 5], [['mustard', 'icescraper', 'coldroom'], 4],
+  [['scarlett', 'tapegun', 'sheldon'], 3], [['mustard', 'microscope', 'sheldon'], 3],
+  [['plum', 'microscope', 'elevator'], 2], [['scarlett', 'microscope', 'sheldon'], 2],
+  [['mustard', 'tapegun', 'sheldon'], 2], [['peach', 'textbook', 'reading'], 1.5],
+  [['plum', 'microscope', 'sheldon'], 1.5], [['mustard', 'tapegun', 'elevator'], 1],
+];
+const SUSPECT_W = { mustard: 3, scarlett: 2, peach: 1.2, plum: 2.5, peacock: 1.2, white: 1, green: 1 };
+const WEAPON_W = { icescraper: 1.2, microscope: 3, textbook: 1, tapegun: 2.5, poison: 1.5, hose: 1, pipette: 1 };
+const LOCATION_W = { coldroom: 1.5, elevator: 3, reading: 1, sheldon: 2.5, grin: 1, glass: 1, flow: 1 };
+
+function weighted(pairs) {
+  const total = pairs.reduce((a, [, w]) => a + w, 0);
+  let r = Math.random() * total;
+  for (const [v, w] of pairs) { if ((r -= w) < 0) return v; }
+  return pairs[pairs.length - 1][0];
+}
+const pickFrom = obj => weighted(Object.entries(obj));
+
+function simVote() {
+  const r = Math.random();
+  let p;
+  if (r < 0.30) p = [TRAP.suspect, TRAP.weapon, TRAP.location];          // about 30% fall for the trap
+  else if (r < 0.42) p = [ANSWER.suspect, ANSWER.weapon, ANSWER.location]; // about 12% solve it
+  else if (r < 0.70) p = weighted(NEAR_MISSES);
+  else p = [pickFrom(SUSPECT_W), pickFrom(WEAPON_W), pickFrom(LOCATION_W)];
+  return { suspect: p[0], weapon: p[1], location: p[2] };
+}
+
+async function simulate(n) {
+  const ops = [];
+  const now = Date.now();
+  for (let i = 0; i < n; i++) {
+    const deviceId = 'sim-' + Math.random().toString(36).slice(2, 10);
+    const final = simVote();
+    const ts = now - Math.floor(Math.random() * 110000);
+    const changes = Math.random() < 0.12 ? (Math.random() < 0.3 ? 2 : 1) : 0;
+    for (let c = changes; c > 0; c--) {
+      let earlier;
+      do { earlier = simVote(); } while (earlier.suspect === final.suspect && earlier.weapon === final.weapon && earlier.location === final.location);
+      ops.push([doc(collection(db, 'voteLog')), { deviceId, ...earlier, ts: ts - c * 20000, sim: true }]);
+    }
+    ops.push([doc(collection(db, 'voteLog')), { deviceId, ...final, ts, sim: true }]);
+    ops.push([doc(db, 'votes', deviceId), { ...final, ts, revote: changes > 0, changes, sim: true }]);
+  }
+  for (let i = 0; i < ops.length; i += 450) {
+    const b = writeBatch(db);
+    ops.slice(i, i + 450).forEach(([ref, data]) => b.set(ref, data));
+    await b.commit();
+  }
+}
+
+async function deleteRefs(refs) {
+  for (let i = 0; i < refs.length; i += 450) {
+    const b = writeBatch(db);
+    refs.slice(i, i + 450).forEach(r => b.delete(r));
+    await b.commit();
+  }
+}
+
+async function busy(btns, fn) {
+  btns.forEach(b => b.disabled = true);
+  try { await fn(); } catch (e) { console.error(e); toast('Error: ' + e.message); }
+  btns.forEach(b => b.disabled = false);
+  refreshLogCount();
+}
+const toolButtons = () => [...document.querySelectorAll('.tools button')];
+
+document.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => busy(toolButtons(), async () => {
+  const n = Number(b.dataset.sim);
+  await simulate(n);
+  toast(`Added ${n} simulated votes`);
+}));
+
+$('clearSim').onclick = () => busy(toolButtons(), async () => {
+  const [v, l] = await Promise.all([
+    getDocs(query(collection(db, 'votes'), where('sim', '==', true))),
+    getDocs(query(collection(db, 'voteLog'), where('sim', '==', true))),
+  ]);
+  await deleteRefs([...v.docs, ...l.docs].map(d => d.ref));
+  toast(`Removed ${v.size} simulated votes`);
+});
+
+$('resetAll').onclick = () => {
+  if (!confirm('Delete ALL votes and the full vote log (real and simulated)? This cannot be undone.')) return;
+  busy(toolButtons(), async () => {
+    const [v, l] = await Promise.all([getDocs(collection(db, 'votes')), getDocs(collection(db, 'voteLog'))]);
+    await deleteRefs([...v.docs, ...l.docs].map(d => d.ref));
+    expanded.clear(); history.clear();
+    toast('All votes deleted');
+  });
+};
+
+async function refreshLogCount() {
+  try { $('nLog').textContent = (await getCountFromServer(collection(db, 'voteLog'))).data().count; } catch (e) {}
+}
+setInterval(refreshLogCount, 15000);
+
+$('csv').onclick = () => {
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [['deviceId', 'suspect', 'weapon', 'location', 'revote', 'changes', 'ts'].join(',')];
+  [...votes].sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach(v => lines.push([
+    q(v.id), q(nameOf('suspect', v.suspect)), q(nameOf('weapon', v.weapon)), q(nameOf('location', v.location)),
+    v.revote ? 'true' : 'false', v.changes || 0, q(v.ts ? new Date(v.ts).toISOString() : ''),
+  ].join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lab-murder-votes-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ---------- photos ----------
+function renderPhotos() {
+  $('photos').innerHTML = SUSPECTS.map((s, i) => `
+    <div class="ph">
+      <div class="img" style="${photos[s.id] ? '' : `background:${s.color}`}">${photos[s.id] ? `<img src="${photos[s.id]}" alt="">` : ''}</div>
+      <div class="nm">${i + 1}. ${s.name}</div>
+      <label>Upload<input type="file" accept="image/*" data-id="${s.id}"></label>
+      <button data-remove="${s.id}" ${photos[s.id] ? '' : 'disabled'}>Remove</button>
+    </div>`).join('');
+}
+
+function resizeToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.6));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image')); };
+    img.src = url;
+  });
+}
+
+$('photos').addEventListener('change', async e => {
+  const input = e.target.closest('input[type=file]');
+  if (!input || !input.files[0]) return;
+  try {
+    const dataUrl = await resizeToDataUrl(input.files[0]);
+    await setDoc(doc(db, 'characters', input.dataset.id), { photoDataUrl: dataUrl });
+    toast(`Saved photo for ${S[input.dataset.id].name} (${Math.round(dataUrl.length / 1024)} KB)`);
+  } catch (err) { console.error(err); toast('Upload failed: ' + err.message); }
+});
+$('photos').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-remove]');
+  if (!b || !confirm(`Remove the photo for ${S[b.dataset.remove].name}?`)) return;
+  await deleteDoc(doc(db, 'characters', b.dataset.remove));
+});
+
+// ---------- vote URL + QR ----------
+const VOTE_URL = location.origin + '/';
+$('voteUrl').textContent = VOTE_URL;
+$('printUrl').textContent = VOTE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
+new QRCode($('qr'), { text: VOTE_URL, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.M });
+new QRCode($('qrPrint'), { text: VOTE_URL, width: 840, height: 840, correctLevel: QRCode.CorrectLevel.M });
+$('copyUrl').onclick = async () => {
+  try { await navigator.clipboard.writeText(VOTE_URL); toast('Copied'); } catch (e) { toast(VOTE_URL); }
+};
+$('printQr').onclick = () => window.print();
+
+// ---------- live data ----------
+const first = await getDoc(stateRef);
+if (!first.exists()) await setDoc(stateRef, DEFAULT_STATE);
+
+onSnapshot(stateRef, snap => {
+  game = { ...DEFAULT_STATE, ...(snap.data() || {}) };
+  renderControls();
+}, err => { console.error(err); $('live').textContent = 'Connection problem: ' + err.message; });
+
+onSnapshot(collection(db, 'votes'), snap => {
+  votes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  queueTable();
+});
+
+onSnapshot(collection(db, 'characters'), snap => {
+  photos = {};
+  snap.docs.forEach(d => { if (d.data().photoDataUrl) photos[d.id] = d.data().photoDataUrl; });
+  renderPhotos();
+});
+
+renderPhotos();
+renderControls();
+refreshLogCount();
+</script>
+</body>
+</html>

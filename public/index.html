@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121014">
+<meta name="color-scheme" content="dark">
+<title>A Lab Murder</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<style>
+  :root {
+    --bg: #121014; --card: #1C1920; --line: #2E2A33;
+    --text: #EFE9DD; --muted: #9A93A3;
+    --accent: #F28C28; --on-accent: #1A0F05;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh; overflow-x: hidden;
+    padding-bottom: calc(150px + env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+
+  header { position: relative; padding: 92px 0 8px; }
+  .decor { position: absolute; pointer-events: none; z-index: 0; }
+  .web { top: 0; left: -16px; width: 120px; height: 120px; }
+  .night { top: 4px; right: 0; width: 186px; height: 101px; }
+  header > :not(.decor) { position: relative; z-index: 1; }
+  .kicker { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: .18em; }
+  h1 { font-size: 32px; line-height: 1.12; font-weight: 800; margin: 6px 0 10px; }
+  .sub { color: var(--muted); font-size: 16px; }
+
+  .status {
+    margin: 20px 0 4px; padding: 12px 14px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--line);
+    font-weight: 700; display: flex; align-items: center; gap: 10px;
+  }
+  .status .pip { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  .status.open .pip { background: var(--accent); }
+  .status .time { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .done {
+    display: none; margin-top: 12px; padding: 14px; border-radius: 12px;
+    border: 1px solid var(--accent); background: var(--card);
+  }
+  .done.show { display: block; }
+  .done strong { display: block; font-size: 18px; }
+  .done .again { color: var(--muted); font-size: 15px; margin-top: 2px; }
+  .done .pick { margin-top: 10px; font-size: 16px; line-height: 1.5; }
+
+  section { margin-top: 28px; }
+  h2 { font-size: 15px; font-weight: 800; letter-spacing: .14em; margin-bottom: 10px; }
+  h2 b { color: var(--accent); margin-right: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .opt {
+    min-height: 56px; padding: 10px 12px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--line); color: var(--text);
+    font: inherit; font-size: 16px; font-weight: 650; line-height: 1.2; text-align: left;
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .opt .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .opt .emo { font-size: 22px; flex: none; line-height: 1; }
+  .opt .lbl { flex: 1; }
+  .opt .chk { display: none; font-weight: 900; }
+  .opt.sel { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .opt.sel .chk { display: block; }
+  .opt.sel .dot { box-shadow: 0 0 0 2px var(--on-accent); }
+  .opt:disabled { cursor: default; opacity: .45; }
+  .opt.sel:disabled { opacity: .8; }
+
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: var(--bg); border-top: 1px solid var(--line);
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  }
+  .lock {
+    width: 100%; min-height: 60px; border: 0; border-radius: 14px;
+    background: var(--accent); color: var(--on-accent);
+    font: inherit; font-size: 19px; font-weight: 800; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .lock:disabled { background: var(--card); color: var(--muted); border: 1px solid var(--line); cursor: default; }
+  .hint { text-align: center; color: var(--muted); font-size: 14px; margin-top: 8px; min-height: 20px; }
+  .hint.err { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="decor web" viewBox="0 0 120 120" aria-hidden="true">
+      <path d="M0 0L118.0 0.0M0 0L109.4 44.2M0 0L80.5 86.3M0 0L40.4 110.9M0 0L0.0 118.0M26.0 0.0Q21.9 4.3 24.1 9.7Q18.4 12.7 17.7 19.0Q11.7 19.1 8.9 24.4Q3.9 22.0 0.0 26.0M50.0 0.0Q42.2 8.2 46.4 18.7Q35.4 24.4 34.1 36.6Q22.5 36.7 17.1 47.0Q7.5 42.3 0.0 50.0M76.0 0.0Q64.2 12.5 70.5 28.5Q53.9 37.0 51.8 55.6Q34.2 55.7 26.0 71.4Q11.3 64.4 0.0 76.0M104.0 0.0Q87.8 17.1 96.4 39.0Q73.7 50.7 70.9 76.1Q46.7 76.3 35.6 97.7Q15.5 88.1 0.0 104.0"
+            fill="none" stroke="#EFE9DD" stroke-opacity=".13" stroke-width="1"/>
+    </svg>
+    <svg class="decor night" viewBox="0 0 170 92" aria-hidden="true">
+      <defs>
+        <mask id="crescent">
+          <rect width="170" height="92" fill="#fff"/>
+          <circle cx="138" cy="20" r="21" fill="#000"/>
+        </mask>
+        <g id="cat">
+          <path d="M30 48 C42 48 44 36 37 30" fill="none" stroke="#000" stroke-width="3.5" stroke-linecap="round"/>
+          <ellipse cx="20" cy="37" rx="12" ry="13"/>
+          <circle cx="20" cy="18" r="8"/>
+          <path d="M12.5 15 L13.5 5 L19 11 Z M21 11 L26.5 5 L27.5 15 Z"/>
+          <ellipse cx="17" cy="18" rx="1.3" ry="1.7" fill="#F28C28"/>
+          <ellipse cx="23" cy="18" rx="1.3" ry="1.7" fill="#F28C28"/>
+        </g>
+      </defs>
+      <circle cx="130" cy="26" r="22" fill="#EFE9DD" mask="url(#crescent)"/>
+      <line x1="6" y1="89.5" x2="168" y2="89.5" stroke="#2E2A33" stroke-width="1.5"/>
+      <use href="#cat" transform="translate(70 39)" fill="#000"/>
+      <use href="#cat" transform="translate(128 61) scale(-0.58 0.58)" fill="#000"/>
+    </svg>
+
+    <div class="kicker">A LAB MURDER</div>
+    <h1>Who killed Dr. Boddy?</h1>
+    <p class="sub">Solve it: pick a SUSPECT, a WEAPON, and a LOCATION.</p>
+
+    <div class="status" id="status"><span class="pip"></span><span id="statusText">Connecting…</span><span class="time" id="statusTime"></span></div>
+    <div class="done" id="done">
+      <strong id="doneTitle">Vote locked in 🎃</strong>
+      <div class="again" id="doneAgain">Changed your mind? Vote again.</div>
+      <div class="pick" id="donePick"></div>
+    </div>
+  </header>
+
+  <section><h2><b>1</b>SUSPECT</h2><div class="grid" id="g-suspect"></div></section>
+  <section><h2><b>2</b>WEAPON</h2><div class="grid" id="g-weapon"></div></section>
+  <section><h2><b>3</b>LOCATION</h2><div class="grid" id="g-location"></div></section>
+</div>
+
+<div class="dock">
+  <div class="wrap">
+    <button class="lock" id="lock" disabled>Lock in my guess</button>
+    <div class="hint" id="hint">0 of 3 picked</div>
+  </div>
+</div>
+
+<script src="/firebase-config.js"></script>
+<script>
+// Firebase web config comes from /firebase-config.js (git-ignored, see README step 4).
+// If that file is missing, it is loaded from Firebase Hosting's /__/firebase/init.json.
+const FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+
+const OPTIONS = {
+  suspect: [
+    { id: 'mustard',  label: 'Colonel Mustard', color: '#D9A82E' },
+    { id: 'scarlett', label: 'Miss Scarlett',   color: '#C8323A' },
+    { id: 'peach',    label: 'Miss Peach',      color: '#F2B08A' },
+    { id: 'plum',     label: 'Professor Plum',  color: '#7B4F9E' },
+    { id: 'peacock',  label: 'Mrs. Peacock',    color: '#3C6FB0' },
+    { id: 'white',    label: 'Mrs. White',      color: '#EFE9DD' },
+    { id: 'green',    label: 'Ms. Green',       color: '#3F8F55' },
+  ],
+  weapon: [
+    { id: 'icescraper', label: 'Ice scraper',  emoji: '❄️' },
+    { id: 'microscope', label: 'Microscope',   emoji: '🔬' },
+    { id: 'textbook',   label: 'Textbook',     emoji: '📕' },
+    { id: 'tapegun',    label: 'Tape gun',     emoji: '📦' },
+    { id: 'poison',     label: 'Poison',       emoji: '☠️' },
+    { id: 'hose',       label: 'Rubber hose',  emoji: '🪢' },
+    { id: 'pipette',    label: 'Micropipette', emoji: '💧' },
+  ],
+  location: [
+    { id: 'coldroom', label: 'Cold Room',             emoji: '❄️' },
+    { id: 'elevator', label: 'Elevator',              emoji: '🛗' },
+    { id: 'reading',  label: 'Reading Rooms',         emoji: '📚' },
+    { id: 'sheldon',  label: 'Sheldon',               emoji: '🚪' },
+    { id: 'grin',     label: 'Daily Grind',            emoji: '☕' },
+    { id: 'glass',    label: 'Glass Conference Room', emoji: '🪟' },
+    { id: 'flow',     label: 'Flow Core',             emoji: '🧪' },
+  ],
+};
+const KINDS = ['suspect', 'weapon', 'location'];
+const byId = {};
+KINDS.forEach(k => { byId[k] = {}; OPTIONS[k].forEach(o => byId[k][o.id] = o); });
+
+function store(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+
+let deviceId = load('labMurder.deviceId');
+if (!deviceId) { deviceId = uuid(); store('labMurder.deviceId', deviceId); }
+
+let picks = { suspect: null, weapon: null, location: null };
+try { Object.assign(picks, JSON.parse(load('labMurder.draft')) || {}); } catch (e) {}
+let myVote = null;
+try { myVote = JSON.parse(load('labMurder.vote')); } catch (e) {}
+let game = null;           // null until first snapshot
+let sending = false, sendError = '', slowSend = false;
+let commitFn = null;       // set once Firebase is ready
+
+const $ = id => document.getElementById(id);
+
+// ---- build buttons once ----
+const buttons = { suspect: {}, weapon: {}, location: {} };
+KINDS.forEach(kind => {
+  const grid = $('g-' + kind);
+  OPTIONS[kind].forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.type = 'button';
+    b.innerHTML = (o.color
+      ? `<span class="dot" style="background:${o.color}"></span>`
+      : `<span class="emo">${o.emoji}</span>`) +
+      `<span class="lbl">${o.label}</span><span class="chk">✓</span>`;
+    b.addEventListener('click', () => {
+      if (!canPick()) return;
+      picks[kind] = o.id;
+      sendError = '';
+      store('labMurder.draft', JSON.stringify(picks));
+      render();
+    });
+    grid.appendChild(b);
+    buttons[kind][o.id] = b;
+  });
+});
+
+function isOpen() {
+  if (!game || !game.votingOpen) return false;
+  return !game.countdownEndsAt || Date.now() < game.countdownEndsAt;
+}
+function isClosed() {
+  if (!game || isOpen()) return false;
+  return ['VOTING', 'RESULTS', 'REVEAL'].includes(game.phase);
+}
+function canPick() { return !isClosed() && !sending; }
+function pickedCount() { return KINDS.filter(k => picks[k]).length; }
+function describe(v) {
+  return `${byId.suspect[v.suspect].label}<br>${byId.weapon[v.weapon].emoji} ${byId.weapon[v.weapon].label}<br>${byId.location[v.location].emoji} ${byId.location[v.location].label}`;
+}
+function fmt(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function render() {
+  const open = isOpen(), closed = isClosed();
+
+  // status line
+  const st = $('status');
+  st.classList.toggle('open', open);
+  if (!game) $('statusText').textContent = 'Connecting…';
+  else if (open) $('statusText').textContent = 'Voting is open';
+  else if (closed) $('statusText').textContent = 'Voting closed';
+  else $('statusText').textContent = 'Voting opens soon…';
+  $('statusTime').textContent = open && game.countdownEndsAt ? fmt(game.countdownEndsAt - Date.now()) + ' left' : '';
+
+  // buttons
+  KINDS.forEach(kind => {
+    for (const id in buttons[kind]) {
+      const b = buttons[kind][id];
+      b.classList.toggle('sel', picks[kind] === id);
+      b.disabled = closed;
+    }
+  });
+
+  // confirmation card
+  const done = $('done');
+  if (myVote && byId.suspect[myVote.suspect]) {
+    done.classList.add('show');
+    $('doneTitle').textContent = closed ? 'Your final guess 🎃' : 'Vote locked in 🎃';
+    $('doneAgain').style.display = closed ? 'none' : '';
+    $('donePick').innerHTML = describe(myVote);
+  } else {
+    done.classList.remove('show');
+  }
+
+  // dock
+  const lock = $('lock'), hint = $('hint');
+  const n = pickedCount();
+  hint.classList.toggle('err', !!sendError);
+  if (sending) {
+    lock.disabled = true; lock.textContent = 'Sending…';
+    hint.textContent = slowSend ? 'Weak signal, still sending. Hang tight.' : '';
+  } else if (closed) {
+    lock.disabled = true; lock.textContent = 'Voting closed';
+    hint.textContent = myVote ? 'Thanks for voting. Eyes on the screen!' : '';
+  } else {
+    lock.textContent = 'Lock in my guess';
+    lock.disabled = n < 3 || !open || !commitFn;
+    if (sendError) hint.textContent = sendError;
+    else if (n < 3) hint.textContent = `${n} of 3 picked`;
+    else if (!game) hint.textContent = 'Connecting…';
+    else if (!open) hint.textContent = 'Voting opens soon…';
+    else hint.textContent = '';
+  }
+}
+
+$('lock').addEventListener('click', async () => {
+  if (sending || pickedCount() < 3 || !isOpen() || !commitFn) return;
+  const vote = { suspect: picks.suspect, weapon: picks.weapon, location: picks.location };
+  const prev = myVote;
+  const same = prev && KINDS.every(k => prev[k] === vote[k]);
+  const revote = prev ? (same ? !!prev.revote : true) : false;
+  const changes = prev ? (prev.changes || 0) + (same ? 0 : 1) : 0;
+  const ts = Date.now();
+
+  sending = true; sendError = ''; slowSend = false;
+  const slowTimer = setTimeout(() => { slowSend = true; render(); }, 5000);
+  render();
+  try {
+    await commitFn({ ...vote, ts, revote, changes, sim: false });
+    myVote = { ...vote, ts, revote, changes };
+    store('labMurder.vote', JSON.stringify(myVote));
+  } catch (e) {
+    console.error(e);
+    sendError = "Couldn't send your vote. Tap to try again.";
+  }
+  clearTimeout(slowTimer);
+  sending = false; slowSend = false;
+  render();
+  if (!sendError) $('done').scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+setInterval(() => { if (game && game.votingOpen) render(); }, 1000);
+render();
+
+// ---- Firebase (loaded after the buttons are already on screen) ----
+(async function connect() {
+  const [{ initializeApp }, fs] = await Promise.all([
+    import(SDK + 'firebase-app.js'),
+    import(SDK + 'firebase-firestore.js'),
+  ]);
+  const config = FIREBASE_CONFIG || await (await fetch('/__/firebase/init.json')).json();
+  const db = fs.getFirestore(initializeApp(config));
+
+  fs.onSnapshot(fs.doc(db, 'game', 'state'), snap => {
+    game = snap.exists() ? snap.data() : { phase: 'TITLE', votingOpen: false };
+    render();
+  }, err => console.error(err));
+
+  // Our own vote doc: picks up a reset by the host (doc deleted).
+  fs.onSnapshot(fs.doc(db, 'votes', deviceId), snap => {
+    if (snap.metadata.hasPendingWrites) return;
+    if (snap.exists()) {
+      const d = snap.data();
+      myVote = { suspect: d.suspect, weapon: d.weapon, location: d.location, ts: d.ts, revote: d.revote, changes: d.changes };
+      store('labMurder.vote', JSON.stringify(myVote));
+      if (!pickedCount()) { KINDS.forEach(k => picks[k] = d[k]); }
+    } else if (!sending) {
+      myVote = null;
+      store('labMurder.vote', 'null');
+    }
+    render();
+  }, err => console.error(err));
+
+  commitFn = vote => {
+    const batch = fs.writeBatch(db);
+    batch.set(fs.doc(db, 'votes', deviceId), vote);
+    batch.set(fs.doc(fs.collection(db, 'voteLog')), {
+      deviceId, suspect: vote.suspect, weapon: vote.weapon, location: vote.location, ts: vote.ts, sim: false,
+    });
+    return batch.commit();
+  };
+  render();
+})().catch(err => {
+  console.error(err);
+  $('statusText').textContent = 'Connection problem. Reload the page.';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#121014">
+<title>A Lab Murder · Crew</title>
+<script src="/firebase-config.js"></script>
+<style>
+  :root {
+    --bg: #121014; --card: #1C1920; --line: #2E2A33;
+    --text: #EFE9DD; --muted: #9A93A3;
+    --accent: #F28C28; --on-accent: #1A0F05;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; background: var(--bg); }
+  body { background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-x: hidden; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+  a { color: inherit; }
+
+  nav {
+    position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line);
+    padding-top: env(safe-area-inset-top);
+  }
+  nav .wrap { display: flex; gap: 4px; overflow-x: auto; padding-block: 10px; scrollbar-width: none; }
+  nav a { flex: none; text-decoration: none; font-weight: 700; font-size: 14px; color: var(--muted); padding: 7px 12px; border-radius: 8px; }
+  nav a:hover { color: var(--text); background: var(--card); }
+
+  header { padding: 40px 0 8px; }
+  .kicker { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
+  h1 { font-family: var(--serif); font-size: clamp(34px, 7vw, 48px); line-height: 1.05; margin: 8px 0 10px; }
+  .lede { color: var(--muted); max-width: 62ch; }
+  section { padding: 44px 0 8px; }
+  h2 { font-family: var(--serif); font-size: 30px; line-height: 1.15; margin: 6px 0 16px; }
+  h3 { font-size: 13px; letter-spacing: .16em; color: var(--muted); font-weight: 800; text-transform: uppercase; margin: 26px 0 10px; }
+  p + p { margin-top: 10px; }
+  .muted { color: var(--muted); }
+
+  .pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .page {
+    display: flex; flex-direction: column; gap: 4px; text-decoration: none;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+  }
+  .page:hover, .page:focus-visible { border-color: var(--accent); outline: none; }
+  .page b { font-size: 18px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .page b::after { content: "→"; color: var(--accent); }
+  .page .who { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--accent); text-transform: uppercase; }
+  .page span:last-child { color: var(--muted); font-size: 14px; }
+  .page.main { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .page.main .who, .page.main b::after, .page.main span:last-child { color: var(--on-accent); }
+
+  blockquote.intro { font-family: var(--serif); font-size: 21px; line-height: 1.45; border-left: 3px solid var(--accent); padding-left: 16px; max-width: 60ch; }
+  .rule { font-family: var(--serif); font-size: 21px; }
+  .rule em { color: var(--accent); font-style: italic; }
+
+  .table-box { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; color: var(--muted); font-size: 11px; letter-spacing: .12em; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--card); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.n { color: var(--accent); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+  ol.clues { padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+  ol.clues li::marker, ol.steps li::marker { color: var(--accent); font-weight: 800; }
+  ol.steps { padding-left: 22px; display: flex; flex-direction: column; gap: 8px; max-width: 64ch; }
+  ul.rules { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; max-width: 64ch; }
+
+  /* MC script */
+  .mc-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .live-pill { font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .live-pill.on { border-color: var(--accent); color: var(--accent); }
+  .mc-bar label { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .mc-bar input { accent-color: var(--accent); width: 18px; height: 18px; }
+  .script { display: flex; flex-direction: column; gap: 10px; }
+  .cue { border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; transition: border-color .3s, background-color .3s; position: relative; }
+  .cue .tag { font-size: 12px; font-weight: 800; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: flex; gap: 10px; align-items: center; }
+  .cue .tag .here { display: none; color: var(--on-accent); background: var(--accent); padding: 1px 8px; border-radius: 6px; letter-spacing: .08em; }
+  .cue p { font-family: var(--serif); font-size: 22px; line-height: 1.5; }
+  .cue p b { font-family: system-ui, -apple-system, sans-serif; }
+  .cue .stage-dir { font-family: system-ui, sans-serif; font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .cue.live { border-color: var(--accent); background: var(--card); }
+  .cue.live .tag .here { display: inline-block; }
+  .cue.after { border-style: dashed; }
+  .cue.after p { font-size: 18px; }
+  footer { padding: 48px 0 64px; color: var(--muted); font-size: 13px; }
+  @media (max-width: 560px) {
+    .cue p { font-size: 19px; }
+    blockquote.intro, .rule { font-size: 19px; }
+    td, th { padding: 8px 9px; }
+  }
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a href="#pages">Pages</a><a href="#mystery">The mystery</a><a href="#cast">Cast briefing</a><a href="#mc">MC script</a>
+</div></nav>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">A Lab Murder · Crew</div>
+    <h1>Backstage</h1>
+    <p class="lede">Everything the host, the MC and the seven suspects need for the night. Please don't share this page with guests.</p>
+  </header>
+
+  <section id="pages">
+    <h3>Pages</h3>
+    <div class="pages">
+      <a class="page main" href="/control-k7427s.html"><span class="who">Host · phone</span><b>Host controls</b><span>Run the show with Next / Back. Voting, votes table, photos.</span></a>
+      <a class="page" href="/stage-nkddi5.html"><span class="who">Projector laptop</span><b>Stage screen</b><span>The big screen. Follows the host controls. Press F for full screen.</span></a>
+      <a class="page" href="#mc"><span class="who">MC · laptop</span><b>MC script</b><span>About 2 minutes. Highlights the line that's on screen right now.</span></a>
+      <a class="page" href="#cast"><span class="who">The 7 suspects</span><b>Cast briefing</b><span>Walk order, getting on and off stage.</span></a>
+      <a class="page" href="#mystery"><span class="who">Everyone</span><b>The mystery &amp; rules</b><span>Story, suspects, weapons, rooms, clues.</span></a>
+      <a class="page" href="/"><span class="who">Audience · phones</span><b>Vote page</b><span>What the QR code opens. Check it works on your phone.</span></a>
+    </div>
+  </section>
+
+  <section id="mystery">
+    <div class="kicker">The mystery</div>
+    <h2>Who killed Dr. Boddy?</h2>
+    <blockquote class="intro">Halloween night, 11:47 PM. Dr. Boddy, keeper of the department's microscope booking calendar, is found dead. Seven lab members were in the building. One of them is lying.</blockquote>
+
+    <h3>Suspects, in walk order</h3>
+    <div class="table-box"><table>
+      <thead><tr><th>#</th><th>SUSPECT</th><th>WEAPON</th><th>THEIR ROOM</th></tr></thead>
+      <tbody id="suspectRows"></tbody>
+    </table></div>
+    <p class="muted" style="margin-top:8px">The order they walk out is part of the puzzle.</p>
+
+    <h3>The rule</h3>
+    <p class="rule">The innocent tell the truth. The killer lies. <em>Remember the order they walked out.</em></p>
+
+    <h3>The clues, one at a time</h3>
+    <ol class="clues" id="clueList"></ol>
+  </section>
+
+  <section id="cast">
+    <div class="kicker">Cast briefing</div>
+    <h2>You're a suspect. Walk out in order.</h2>
+    <p class="lede">You're on stage for about 5 minutes. The audience solves the mystery from <b>the order you walk out</b>, so getting the order right is the most important job. Bring your costume and a weapon big enough to see from the back row.</p>
+
+    <h3>Walk order</h3>
+    <div class="table-box"><table>
+      <thead><tr><th>#</th><th>YOU ARE</th><th>HOLDING</th><th>AFTER</th><th>BEFORE</th></tr></thead>
+      <tbody id="castRows"></tbody>
+    </table></div>
+    <p class="muted" style="margin-top:8px">Line up backstage in this order 5 minutes before we start.</p>
+
+    <h3>Getting on stage</h3>
+    <ol class="steps">
+      <li>Wait for the MC to call <b>your name</b>. That's your cue. Your photo also comes up on the screen.</li>
+      <li>Walk to the <b>center mark</b>, face the audience, hold up your weapon and pose for about 3 seconds.</li>
+      <li>Walk to your spot in the <b>line at the back of the stage</b>. It fills from the audience's left to right: #1 at the far left, each next person to the right of the one before.</li>
+      <li>Stay in line and in character. Don't stand in front of the projector screen.</li>
+    </ol>
+
+    <h3>During the clues</h3>
+    <p class="note">The MC reads 5 clues. If one is yours (Mustard, Peach, Peacock, Plum or Scarlett), <b>take one step forward</b> while it's read, look very trustworthy, then step back. Mrs. White and Ms. Green have no clue: just look suspicious.</p>
+
+    <h3>Getting off stage</h3>
+    <ol class="steps">
+      <li>When the MC says <b>"Now it's your turn, detectives"</b> (voting opens), walk off the way you came in, <b>in the same order</b> (#1 first).</li>
+      <li>Stay close by. After the reveal, the MC calls everyone back on for <b>a bow</b>. Come back in the same order.</li>
+    </ol>
+
+    <h3>Rules</h3>
+    <ul class="rules">
+      <li><b>Don't change the order</b>, and don't swap places with anyone.</li>
+      <li>Don't hint at the answer, even if you've figured it out.</li>
+      <li>Have fun. Overact.</li>
+    </ul>
+  </section>
+
+  <section id="mc">
+    <div class="kicker">MC script · about 2 minutes</div>
+    <h2>Read this aloud</h2>
+    <div class="mc-bar">
+      <span class="live-pill" id="livePill">Connecting…</span>
+      <label><input type="checkbox" id="follow" checked> Scroll to the current line</label>
+    </div>
+    <p class="muted" style="margin-bottom:16px">Speak slowly, low and spooky. The highlighted block is what's on the projector right now. It moves when the host taps Next.</p>
+    <div class="script" id="script"></div>
+  </section>
+
+  <footer>A Lab Murder · crew page</footer>
+</div>
+
+<script>
+// Walk order. Do not reorder: it is part of the puzzle.
+const SUSPECTS = [
+  { id: 'mustard',  name: 'Colonel Mustard', color: '#D9A82E', weapon: '❄️ Ice scraper',  w: 'ice scraper',  room: '❄️ Cold Room',             r: 'Cold Room' },
+  { id: 'scarlett', name: 'Miss Scarlett',   color: '#C8323A', weapon: '🔬 Microscope',   w: 'microscope',   room: '🛗 Elevator',              r: 'Elevator' },
+  { id: 'peach',    name: 'Miss Peach',      color: '#F2B08A', weapon: '📕 Textbook',     w: 'textbook',     room: '📚 Reading Rooms',         r: 'Reading Rooms' },
+  { id: 'plum',     name: 'Professor Plum',  color: '#7B4F9E', weapon: '📦 Tape gun',     w: 'tape gun',     room: '🚪 Sheldon',               r: 'Sheldon' },
+  { id: 'peacock',  name: 'Mrs. Peacock',    color: '#3C6FB0', weapon: '☠️ Poison',       w: 'poison',       room: '☕ Daily Grind',           r: 'Daily Grind' },
+  { id: 'white',    name: 'Mrs. White',      color: '#EFE9DD', weapon: '🪢 Rubber hose',  w: 'rubber hose',  room: '🪟 Glass Conference Room', r: 'Glass Conference Room' },
+  { id: 'green',    name: 'Ms. Green',       color: '#3F8F55', weapon: '💧 Micropipette', w: 'micropipette', room: '🧪 Flow Core',             r: 'Flow Core' },
+];
+const CLUES = [
+  { who: 'mustard', text: 'The body was still warm. Whatever happened, it wasn’t in my Cold Room.' },
+  { who: 'peach',   text: 'The weapon belongs to someone who walked out right next to me.' },
+  { who: 'peacock', text: 'It happened on the weapon owner’s own turf, in their room.' },
+  { who: 'plum',    text: 'I was in Sheldon all night. Nothing happened there.' },
+  { who: 'scarlett', text: 'The killer walked out before I did.' },
+];
+const S = Object.fromEntries(SUSPECTS.map(s => [s.id, s]));
+const dot = c => `<span class="dot" style="background:${c}"></span>`;
+const $ = id => document.getElementById(id);
+
+$('suspectRows').innerHTML = SUSPECTS.map((s, i) =>
+  `<tr><td class="n">${i + 1}</td><td>${dot(s.color)}${s.name}</td><td>${s.weapon}</td><td>${s.room}</td></tr>`).join('');
+$('clueList').innerHTML = CLUES.map(c => `<li><b>${S[c.who].name}:</b> “${c.text}”</li>`).join('');
+$('castRows').innerHTML = SUSPECTS.map((s, i) =>
+  `<tr><td class="n">${i + 1}</td><td>${dot(s.color)}<b>${s.name}</b></td><td>${s.weapon}</td>` +
+  `<td>${i ? SUSPECTS[i - 1].name : '<span class="muted">(first)</span>'}</td>` +
+  `<td>${SUSPECTS[i + 1] ? SUSPECTS[i + 1].name : '<span class="muted">(last)</span>'}</td></tr>`).join('');
+
+// ---- MC script, one block per screen the host can show ----
+const ordinal = ['First…', '', '', '', '', '', 'And last…'];
+const BLOCKS = [
+  { key: 'TITLE', tag: 'Title', html: `<p>Good evening… and welcome to the darkest night of the academic year.</p>
+    <p>Halloween. Eleven forty-seven PM. The building is empty… almost. Dr. Boddy, keeper of the department's microscope booking calendar, has been found dead.</p>
+    <p>Seven lab members were in the building tonight. One of them… is lying. Let's meet them.</p>` },
+  ...SUSPECTS.map((s, i) => ({
+    key: 'LINEUP-' + i, tag: `Lineup ${i + 1}/7`,
+    html: `<p>${ordinal[i] ? ordinal[i] + ' ' : ''}<b>${s.name}</b>, with the ${s.w}, from the ${s.r}.</p>` +
+      (i === 0 ? `<div class="stage-dir">Their name is the cue to walk. Wait for the pose, then the host taps Next.</div>` : ''),
+  })),
+  { key: 'RULE', tag: 'Rule', html: `<p>One rule. The innocent tell the truth. The killer lies.</p><p>And remember the order they walked out… it matters.</p>` },
+  ...CLUES.map((c, i) => ({
+    key: 'CLUES-' + i, tag: `Clue ${i + 1}/5`,
+    html: `<p>${i === 4 ? 'And ' : ''}${S[c.who].name} says: <i>“${c.text}”</i></p>` +
+      (i === 0 ? `<div class="stage-dir">The speaker steps forward while you read.</div>` : ''),
+  })),
+  { key: 'VOTING', tag: 'Voting', html: `<p>Now it's your turn, detectives. Scan the code on the screen.</p>
+    <p>Pick one suspect, one weapon, one location. You can change your mind until the clock runs out.</p>
+    <p>When it hits zero, we'll see who you accused… and then we'll reveal who really killed Dr. Boddy.</p>
+    <div class="stage-dir">The suspects walk off. Countdown runs (2 min by default).</div>` },
+  { key: 'RESULTS', tag: 'Results · after the countdown', after: true, html: `<p>The votes are in. Here's who you accused…</p><div class="stage-dir">Read out the top bar.</div>` },
+  { key: 'REVEAL', tag: 'Reveal', after: true, html: `<p>The murderer was…</p><div class="stage-dir">Stay quiet while the three cards flip. The reveal line appears by itself.</div>
+    <p>Let's bring our suspects back for a bow!</p>` },
+];
+$('script').innerHTML = BLOCKS.map(b =>
+  `<div class="cue${b.after ? ' after' : ''}" data-key="${b.key}"><div class="tag">${b.tag}<span class="here">ON SCREEN</span></div>${b.html}</div>`).join('');
+
+let liveKey = null;
+try { $('follow').checked = localStorage.getItem('labMurder.follow') !== '0'; } catch (e) {}
+$('follow').addEventListener('change', () => { try { localStorage.setItem('labMurder.follow', $('follow').checked ? '1' : '0'); } catch (e) {} });
+
+function showLive(game) {
+  const p = game.phase || 'TITLE';
+  const key = p === 'LINEUP' ? 'LINEUP-' + Math.max(0, Math.min(6, game.lineupIndex || 0))
+            : p === 'CLUES' ? 'CLUES-' + Math.max(0, Math.min(4, game.clueIndex || 0)) : p;
+  const pill = $('livePill');
+  pill.classList.add('on');
+  pill.textContent = 'Live · on screen: ' + p.charAt(0) + p.slice(1).toLowerCase();
+  if (key === liveKey) return;
+  liveKey = key;
+  document.querySelectorAll('.cue').forEach(el => el.classList.toggle('live', el.dataset.key === key));
+  const el = document.querySelector(`.cue[data-key="${key}"]`);
+  const mcVisible = $('mc').getBoundingClientRect().top < innerHeight;
+  if (el && $('follow').checked && mcVisible) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ---- live link to the show (read only) ----
+(async function connect() {
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [{ initializeApp }, fs] = await Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]);
+  const config = window.FIREBASE_CONFIG || await (await fetch('/__/firebase/init.json')).json();
+  const db = fs.getFirestore(initializeApp(config));
+  fs.onSnapshot(fs.doc(db, 'game', 'state'), snap => showLive(snap.exists() ? snap.data() : { phase: 'TITLE' }),
+    () => { $('livePill').textContent = 'Not connected (script still works)'; });
+})().catch(() => { $('livePill').textContent = 'Not connected (script still works)'; });
+</script>
+</body>
+</html>

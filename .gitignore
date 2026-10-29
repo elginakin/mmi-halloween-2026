@@ -1,0 +1,7 @@
+.firebase/
+*.log
+.DS_Store
+
+# Firebase web config (kept out of GitHub; still deployed to Hosting)
+public/firebase-config.js
+node_modules/
